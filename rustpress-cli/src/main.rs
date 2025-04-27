@@ -31,7 +31,7 @@ fn main() -> Result<()> {
     match &cli.command {
         Commands::Convert { input, output } => {
             let content = fs::read_to_string(input)?;
-            let item = parse_markdown(&content);
+            let item = parse_markdown(&content, None);
             let html = render_html(&item);
 
             match output {

@@ -16,7 +16,7 @@ impl Rustpress {
     /// Render markdown to HTML
     #[wasm_bindgen]
     pub fn render_markdown(&self, content: &str) -> String {
-        let item = parse_markdown(content);
+        let item = parse_markdown(content, None);
         render_html(&item)
     }
 }

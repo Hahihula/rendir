@@ -1,3 +1,4 @@
+pub mod components;
 pub mod markdown;
 pub mod render;
 pub mod types;
