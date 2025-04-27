@@ -1,0 +1,10 @@
+[workspace]
+members = [ "rustpress-cli","rustpress-core", "rustpress-wasm"]
+
+[workspace.dependencies]
+pulldown-cmark = "0.9"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.7"
+anyhow = "1.0"
+thiserror = "1.0"
