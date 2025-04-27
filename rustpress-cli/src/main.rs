@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use rustpress_core::components::{ComponentRegistry, builtins::register_builtin_components};
+use rustpress_core::render::render_with_template;
 use rustpress_core::{parse_markdown, render_html};
 use std::fs;
 use std::path::PathBuf;
@@ -23,6 +24,10 @@ enum Commands {
         /// Output HTML file
         #[arg(short, long)]
         output: Option<PathBuf>,
+
+        /// Custom HTML template file
+        #[arg(short, long)]
+        template: Option<PathBuf>,
     },
 }
 
@@ -34,10 +39,20 @@ fn main() -> Result<()> {
     register_builtin_components(&mut registry);
 
     match &cli.command {
-        Commands::Convert { input, output } => {
+        Commands::Convert {
+            input,
+            output,
+            template,
+        } => {
             let content = fs::read_to_string(input)?;
             let item = parse_markdown(&content, Some(&registry));
-            let html = render_html(&item);
+
+            let html = if let Some(template_path) = template {
+                let template_content = fs::read_to_string(template_path)?;
+                render_with_template(&item, &template_content)
+            } else {
+                render_html(&item)
+            };
 
             match output {
                 Some(path) => fs::write(path, html)?,
