@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+pub mod builtins;
+
 /// Represents a custom component in markdown
 pub struct Component {
     pub name: String,

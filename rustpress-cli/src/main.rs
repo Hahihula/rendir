@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use rustpress_core::components::{ComponentRegistry, builtins::register_builtin_components};
 use rustpress_core::{parse_markdown, render_html};
 use std::fs;
 use std::path::PathBuf;
@@ -28,10 +29,14 @@ enum Commands {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // Create component registry with built-in components
+    let mut registry = ComponentRegistry::new();
+    register_builtin_components(&mut registry);
+
     match &cli.command {
         Commands::Convert { input, output } => {
             let content = fs::read_to_string(input)?;
-            let item = parse_markdown(&content, None);
+            let item = parse_markdown(&content, Some(&registry));
             let html = render_html(&item);
 
             match output {
