@@ -80,16 +80,17 @@ fn process_components(content: &str, registry: &ComponentRegistry) -> String {
 }
 
 /// Extract frontmatter and content from markdown
+/// Extract frontmatter and content from markdown
 fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
     let mut metadata = HashMap::new();
 
     // Check if the content starts with "---" (frontmatter delimiter)
     if content.starts_with("---") {
-        if let Some(end_index) = content
-            .find("\n---\n")
-            .or_else(|| content.find("\r\n---\r\n"))
-        {
+        if let Some(end_index) = content[3..].find("\n---\n").map(|i| i + 3) {
+            // Handle Unix line endings (\n)
             let frontmatter = &content[3..end_index];
+            let content_start = end_index + 5; // Skip past the ending "---" and newline
+
             // Parse YAML frontmatter
             if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter) {
                 if let Some(map) = yaml_map.as_mapping() {
@@ -100,8 +101,22 @@ fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
                     }
                 }
             }
-            // Return metadata and content after frontmatter
-            let content_start = end_index + 5; // Skip past the ending "---" and newline
+            return (metadata, &content[content_start..]);
+        } else if let Some(end_index) = content[3..].find("\r\n---\r\n").map(|i| i + 3) {
+            // Handle Windows line endings (\r\n)
+            let frontmatter = &content[3..end_index];
+            let content_start = end_index + 7; // Skip past the ending "---\r\n"
+
+            // Parse YAML frontmatter
+            if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter) {
+                if let Some(map) = yaml_map.as_mapping() {
+                    for (key, value) in map {
+                        if let (Some(key_str), Some(value_str)) = (key.as_str(), value.as_str()) {
+                            metadata.insert(key_str.to_string(), value_str.to_string());
+                        }
+                    }
+                }
+            }
             return (metadata, &content[content_start..]);
         }
     }

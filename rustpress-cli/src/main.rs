@@ -48,8 +48,13 @@ fn main() -> Result<()> {
             let item = parse_markdown(&content, Some(&registry));
 
             let html = if let Some(template_path) = template {
+                let template_name = template_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let template_content = fs::read_to_string(template_path)?;
-                render_with_template(&item, &template_content)
+                render_with_template(&item, &template_name, &template_content)
             } else {
                 render_html(&item)
             };
