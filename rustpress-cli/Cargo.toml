@@ -7,3 +7,4 @@ edition = "2024"
 rustpress-core = { path = "../rustpress-core" }
 clap = { version = "4.0", features = ["derive"] }
 anyhow = { workspace = true }
+walkdir = "2.3"

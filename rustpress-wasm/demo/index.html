@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rustpress Playground</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 120px);
+        }
+
+        .editor,
+        .preview {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 1rem;
+            overflow: auto;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            border: none;
+            resize: none;
+        }
+
+        textarea:focus {
+            outline: none;
+        }
+
+        h1 {
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 0.5rem;
+        }
+
+        .controls {
+            margin-bottom: 1rem;
+        }
+
+        button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #3182ce;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Rustpress Playground</h1>
+
+    <div class="controls">
+        <button id="render-btn">Render</button>
+        <button id="reset-btn">Reset to Example</button>
+    </div>
+
+    <div class="container">
+        <div class="editor">
+            <textarea id="markdown-editor">
+            # Welcome to Rustpress!
+
+            This is a demo of the Rustpress static site generator.
+
+            ## Features
+
+            - Markdown support
+            - Custom components
+            - Template system
+
+            ## Custom Components
+
+            You can use custom components like this:
+
+            <Alert type="info" title="Information">
+                This is an informational alert.
+            </Alert>
+
+            Or using the special markdown syntax:
+
+            :::alert{type="warning" title="Warning"}
+            This is a warning alert.
+            :::
+
+            ## Tables
+
+            | Feature | Status |
+            |---------|--------|
+            | Markdown | ✅ |
+            | Components | ✅ |
+            | WASM | ✅ |
+
+            ## Code Blocks
+
+            ```rust
+            fn main() {
+            println!("Hello, Rustpress!");
+            }
+            ```
+        </textarea>
+        </div>
+        <div class="preview" id="preview"></div>
+    </div>
+    <script type="module">
+        // Import the WASM module
+        import init, { Rustpress } from './rustpress_wasm.js';
+
+        let rustpress;
+
+        // Initialize the WASM module
+        async function initRustpress() {
+            await init();
+            rustpress = new Rustpress();
+            renderMarkdown();
+        }
+
+        // Render markdown
+        function renderMarkdown() {
+            const markdownEditor = document.getElementById('markdown-editor');
+            const preview = document.getElementById('preview');
+
+            try {
+                const result = rustpress.render_markdown(markdownEditor.value);
+                preview.innerHTML = result;
+            } catch (error) {
+                preview.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+                console.error(error);
+            }
+        }
+
+        // Reset to example markdown
+        function resetExample() {
+            document.getElementById('markdown-editor').innerText = `# Welcome to Rustpress!`;
+        }
+        renderMarkdown();
+
+        // Initialize
+        initRustpress();
+
+        // Event listeners
+        document.getElementById('render-btn').addEventListener('click', renderMarkdown);
+        document.getElementById('reset-btn').addEventListener('click', resetExample);
+    </script>
+</body>
+
+</html>

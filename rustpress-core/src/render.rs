@@ -7,19 +7,21 @@ use tera::{Context, Tera};
 
 // Initialize Tera once
 static TERA: OnceLock<Tera> = OnceLock::new();
+
+const DEFAULT_HTML_TEMPLATE: &str = include_str!("templates/default.html");
+
 /// Get the Tera instance (singleton)/// Get or initialize the Tera template engine
 fn get_tera() -> &'static Tera {
     TERA.get_or_init(|| {
         let mut tera = Tera::default();
         // Register default templates
-        tera.add_raw_template("default", include_str!("templates/default.html"))
+        tera.add_raw_template("default", DEFAULT_HTML_TEMPLATE)
             .expect("Failed to parse default template");
         tera
     })
 }
 
 /// Default HTML template
-const DEFAULT_HTML_TEMPLATE: &str = include_str!("templates/default.html");
 
 /// Render a ContentItem as HTML
 pub fn render_html(item: &ContentItem) -> String {
@@ -48,7 +50,7 @@ pub fn render_html(item: &ContentItem) -> String {
         Err(e) => {
             eprintln!("Template rendering error: {}", e);
             // Fallback to basic template with simple replacement
-            include_str!("templates/default.html")
+            DEFAULT_HTML_TEMPLATE
                 .replace(
                     "{{title}}",
                     item.metadata
