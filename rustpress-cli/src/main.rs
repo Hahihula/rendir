@@ -114,7 +114,10 @@ fn main() -> Result<()> {
             };
 
             match output {
-                Some(path) => fs::write(path, html)?,
+                Some(path) => {
+                    let mut file = File::create(path)?;
+                    file.write_all(html.as_bytes())?;
+                }
                 None => println!("{}", html),
             }
         }

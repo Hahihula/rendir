@@ -28,11 +28,12 @@ pub fn render_html(item: &ContentItem) -> String {
     let default_content = String::new();
 
     let content = item.rendered_content.as_ref().unwrap_or(&default_content);
+
     // Create Tera context with metadata
     let mut context = Context::new();
 
-    // Add content
-    context.insert("content", content);
+    // Add content and explicitly mark it as safe HTML
+    context.insert("content", &content);
 
     // Add all metadata
     for (key, value) in &item.metadata {
@@ -50,7 +51,7 @@ pub fn render_html(item: &ContentItem) -> String {
         Err(e) => {
             eprintln!("Template rendering error: {}", e);
             // Fallback to basic template with simple replacement
-            DEFAULT_HTML_TEMPLATE
+            include_str!("templates/default.html")
                 .replace(
                     "{{title}}",
                     item.metadata

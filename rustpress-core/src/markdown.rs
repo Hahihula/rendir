@@ -6,40 +6,82 @@ use std::collections::HashMap;
 
 /// Process markdown to recognize custom components
 fn process_components(content: &str, registry: &ComponentRegistry) -> String {
-    // Process HTML-like component syntax
-    let html_component_regex =
-        Regex::new(r"<([A-Z][A-Za-z0-9]+)(\s+[^>]*)?\s*(?:/>|>(.*?)</\1>)").unwrap();
-    let content = html_component_regex.replace_all(content, |caps: &regex::Captures| {
-        let component_name = &caps[1];
-        let attrs_str = caps.get(2).map_or("", |m| m.as_str());
-        let content = caps.get(3).map(|m| m.as_str().to_string());
+    // Process HTML-like component syntax - using a simpler approach without backreferences
+    let opening_tag_regex = Regex::new(r"<([A-Z][A-Za-z0-9]+)(\s+[^>]*)?(?:/>|>)").unwrap();
 
-        // Parse attributes
-        let attr_regex = Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)""#).unwrap();
-        let mut attributes = HashMap::new();
-        for attr_match in attr_regex.captures_iter(attrs_str) {
-            attributes.insert(attr_match[1].to_string(), attr_match[2].to_string());
-        }
+    let mut result = content.to_string();
+    let mut replacements = Vec::new();
 
-        // Create and render the component
-        let component = Component {
-            name: component_name.to_string(),
-            attributes,
-            content,
-        };
+    // Find all opening tags
+    for cap in opening_tag_regex.captures_iter(content) {
+        let component_name = &cap[1];
+        let attrs_str = cap.get(2).map_or("", |m| m.as_str());
+        let full_match = cap.get(0).unwrap();
 
-        if registry.has_component(component_name) {
-            registry.render(&component)
+        // Check if this is a self-closing tag
+        if full_match.as_str().ends_with("/>") {
+            // Self-closing component
+            // Parse attributes
+            let attr_regex = Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)""#).unwrap();
+            let mut attributes = HashMap::new();
+            for attr_match in attr_regex.captures_iter(attrs_str) {
+                attributes.insert(attr_match[1].to_string(), attr_match[2].to_string());
+            }
+
+            let component = Component {
+                name: component_name.to_string(),
+                attributes,
+                content: None,
+            };
+
+            if registry.has_component(component_name) {
+                replacements.push((
+                    full_match.start(),
+                    full_match.end(),
+                    registry.render(&component),
+                ));
+            }
         } else {
-            // If not registered, keep original text
-            caps[0].to_string()
+            // Opening tag, now look for the matching closing tag
+            let closing_tag = format!("</{}>", component_name);
+            if let Some(end_pos) = result[full_match.end()..].find(&closing_tag) {
+                let content_end = full_match.end() + end_pos;
+                let component_content = &result[full_match.end()..content_end];
+
+                // Parse attributes
+                let attr_regex = Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)""#).unwrap();
+                let mut attributes = HashMap::new();
+                for attr_match in attr_regex.captures_iter(attrs_str) {
+                    attributes.insert(attr_match[1].to_string(), attr_match[2].to_string());
+                }
+
+                let component = Component {
+                    name: component_name.to_string(),
+                    attributes,
+                    content: Some(component_content.to_string()),
+                };
+
+                if registry.has_component(component_name) {
+                    replacements.push((
+                        full_match.start(),
+                        content_end + closing_tag.len(),
+                        registry.render(&component),
+                    ));
+                }
+            }
         }
-    });
+    }
+
+    // Apply replacements in reverse order to not invalidate positions
+    replacements.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
+    for (start, end, replacement) in replacements {
+        result.replace_range(start..end, &replacement);
+    }
 
     // Process markdown special syntax
     let md_component_regex = Regex::new(r":::([\w-]+)(?:\{([^}]*)\})?([\s\S]*?):::").unwrap();
-    md_component_regex
-        .replace_all(&content, |caps: &regex::Captures| {
+    let result = md_component_regex
+        .replace_all(&result, |caps: &regex::Captures| {
             let component_name = &caps[1];
             let attrs_str = caps.get(2).map_or("", |m| m.as_str());
             let content = caps.get(3).map(|m| m.as_str().trim().to_string());
@@ -66,7 +108,11 @@ fn process_components(content: &str, registry: &ComponentRegistry) -> String {
             let component = Component {
                 name: component_name.to_string(),
                 attributes,
-                content,
+                content: if content.is_none() {
+                    None
+                } else {
+                    Some(content.unwrap())
+                },
             };
 
             if registry.has_component(component_name) {
@@ -76,7 +122,9 @@ fn process_components(content: &str, registry: &ComponentRegistry) -> String {
                 format!("<!-- Unknown component: {} -->", component_name)
             }
         })
-        .to_string()
+        .to_string();
+
+    result
 }
 
 /// Extract frontmatter and content from markdown
@@ -132,19 +180,23 @@ pub fn parse_markdown(content: &str, registry: Option<&ComponentRegistry>) -> Co
 
     // Process components if registry is provided
     let processed_content = if let Some(reg) = registry {
-        process_components(content_without_frontmatter, reg)
+        process_components(&content_without_frontmatter, reg)
     } else {
         content_without_frontmatter.to_string()
     };
+
+    // Set up parser options
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
     options.insert(Options::ENABLE_FOOTNOTES);
     options.insert(Options::ENABLE_STRIKETHROUGH);
     options.insert(Options::ENABLE_TASKLISTS);
+    options.insert(Options::ENABLE_SMART_PUNCTUATION);
 
+    // Parse the processed content
     let parser = Parser::new_ext(&processed_content, options);
 
-    // Convert markdown to HTML right away
+    // Convert markdown to HTML
     let mut html_output = String::new();
     html::push_html(&mut html_output, parser);
 
