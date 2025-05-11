@@ -1,5 +1,6 @@
 // rustpress-core/src/components/builtins.rs
 use super::{Component, ComponentRenderer};
+use crate::markdown::parse_markdown_fragment;
 
 /// Alert component (info/warning/error box)
 pub struct AlertComponent;
@@ -20,9 +21,11 @@ impl ComponentRenderer for AlertComponent {
             .unwrap_or_default();
         let content = component.content.as_ref().unwrap_or(&default_content);
 
+        let parsed_content = parse_markdown_fragment(content);
+
         format!(
             "<div class=\"alert alert-{}\">{}{}</div>",
-            alert_type, title, content
+            alert_type, title, parsed_content
         )
     }
 }
@@ -59,6 +62,8 @@ impl ComponentRenderer for TabsComponent {
                 let tab_title = &cap[1];
                 let tab_content = &cap[2];
 
+                let parsed_tab_content = parse_markdown_fragment(tab_content);
+
                 let active = if is_first { " active" } else { "" };
                 tabs_html.push_str(&format!(
                     r#"<button class="tab-btn{}" data-tab="tab-{}">{}</button>"#,
@@ -67,7 +72,7 @@ impl ComponentRenderer for TabsComponent {
 
                 tabs_content.push_str(&format!(
                     r#"<div id="tab-{}" class="tab-content{}">{}</div>"#,
-                    i, active, tab_content
+                    i, active, parsed_tab_content
                 ));
 
                 is_first = false;
@@ -84,11 +89,11 @@ impl ComponentRenderer for TabsComponent {
                 tabBtns.forEach(btn => {
                     btn.addEventListener('click', function() {
                         const tabId = this.getAttribute('data-tab');
-                        
+
                         // Remove active class from all buttons and contents
                         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
                         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                        
+
                         // Add active class to current button and content
                         this.classList.add('active');
                         document.getElementById(tabId).classList.add('active');

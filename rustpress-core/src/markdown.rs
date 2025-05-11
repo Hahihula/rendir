@@ -185,20 +185,8 @@ pub fn parse_markdown(content: &str, registry: Option<&ComponentRegistry>) -> Co
         content_without_frontmatter.to_string()
     };
 
-    // Set up parser options
-    let mut options = Options::empty();
-    options.insert(Options::ENABLE_TABLES);
-    options.insert(Options::ENABLE_FOOTNOTES);
-    options.insert(Options::ENABLE_STRIKETHROUGH);
-    options.insert(Options::ENABLE_TASKLISTS);
-    options.insert(Options::ENABLE_SMART_PUNCTUATION);
-
-    // Parse the processed content
-    let parser = Parser::new_ext(&processed_content, options);
-
     // Convert markdown to HTML
-    let mut html_output = String::new();
-    html::push_html(&mut html_output, parser);
+    let html_output = parse_markdown_fragment(&processed_content);
 
     ContentItem {
         path: None,
@@ -207,4 +195,23 @@ pub fn parse_markdown(content: &str, registry: Option<&ComponentRegistry>) -> Co
         rendered_content: Some(html_output),
         related_items: Vec::new(),
     }
+}
+
+// Helper function to parse markdown fragments
+pub fn parse_markdown_fragment(content: &str) -> String {
+    // Set up parser options
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_TABLES);
+    options.insert(Options::ENABLE_FOOTNOTES);
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    options.insert(Options::ENABLE_TASKLISTS);
+
+    // Parse the content
+    let parser = Parser::new_ext(content, options);
+
+    // Convert markdown to HTML
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+
+    html_output
 }
