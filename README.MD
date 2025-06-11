@@ -1,5 +1,8 @@
 # Rustpress
 
+<div align="center">
+<img src="./rustpress_logo.png" height="300" />
+</div>
 Rustpress is a flexible static site generator written in Rust, designed to convert Markdown content into static websites. It offers both CLI and WebAssembly (WASM) interfaces, with support for custom components, templates, and more.
 
 ## Features
@@ -17,7 +20,7 @@ Rustpress is a flexible static site generator written in Rust, designed to conve
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/rustpress.git
+git clone https://gitlab.com/hahihula/rustpress.git
 cd rustpress
 
 # Build the project
@@ -169,28 +172,28 @@ For browser usage, you can use the WASM build:
 </head>
 <body>
     <div id="output"></div>
-    
+
     <script type="module">
         import init, { Rustpress } from './rustpress_wasm.js';
-        
+
         async function run() {
             await init();
             const rustpress = new Rustpress();
-            
+
             const markdown = `
 # Hello from Rustpress
-            
+
 This is rendered using WebAssembly!
-            
+
 <Alert type="info" title="WebAssembly">
   Rustpress is running directly in your browser via WASM.
 </Alert>
             `;
-            
+
             const html = rustpress.render_markdown(markdown);
             document.getElementById('output').innerHTML = html;
         }
-        
+
         run();
     </script>
 </body>
