@@ -19,8 +19,12 @@ pub struct ContentItem {
     /// Related content items (by reference)
     pub related_items: Vec<RelatedContent>,
 
-    /// Image file paths referenced in this content
+    /// Image file paths referenced in this content (local)
     pub image_references: Vec<PathBuf>,
+
+    /// Remote image URLs referenced in this content
+    #[serde(default)]
+    pub remote_references: Vec<String>,
 
     /// Language code (e.g., "en", "de", "cs", "zh")
     #[serde(default)]

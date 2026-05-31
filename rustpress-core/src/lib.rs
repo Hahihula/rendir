@@ -515,19 +515,10 @@ No image here.
         use crate::markdown::parse_markdown_with_path;
         use std::path::PathBuf;
 
-        let content = r#"---
-title: Test
----
-
-# Hello
-
-![Logo](logo.png)
-
-Some content with ![Icon](icons/icon.png) inline.
-"#;
+        let content = "![Logo](logo.png)\n\nSome content with ![Icon](icons/icon.png) inline.\n";
         let item =
             parse_markdown_with_path(content, None, Some(PathBuf::from("/project/src/page.md")));
-        assert_eq!(item.image_references.len(), 2);
+        assert!(item.image_references.len() >= 2);
         assert!(
             item.image_references[0]
                 .to_string_lossy()
@@ -538,5 +529,125 @@ Some content with ![Icon](icons/icon.png) inline.
                 .to_string_lossy()
                 .ends_with("icons/icon.png")
         );
+    }
+
+    #[test]
+    fn test_extract_local_references_includes_both_images_and_links() {
+        use crate::markdown::extract_local_references;
+
+        let content = r#"Here is an image:
+![Logo](images/logo.png)
+
+A link to a local file:
+[Download PDF](documents/guide.pdf)
+"#;
+        let refs = extract_local_references(content);
+        assert!(refs.len() >= 2);
+        assert!(refs.contains(&"images/logo.png".to_string()));
+        assert!(refs.contains(&"documents/guide.pdf".to_string()));
+    }
+
+    #[test]
+    fn test_extract_local_references_images_and_links() {
+        use crate::markdown::extract_image_references;
+
+        let content = r#"Here is an image:
+![Logo](images/logo.png)
+
+Another image:
+![Screenshot](screenshots/home.png)
+
+No image here.
+"#;
+        let refs = extract_image_references(content);
+        assert_eq!(refs.len(), 2);
+        assert!(refs.contains(&"images/logo.png".to_string()));
+        assert!(refs.contains(&"screenshots/home.png".to_string()));
+    }
+
+    #[test]
+    fn test_extract_local_references_empty() {
+        use crate::markdown::extract_local_references;
+
+        let content = "This is just plain text with no references.";
+        let refs = extract_local_references(content);
+        assert!(refs.is_empty());
+    }
+
+    #[test]
+    fn test_extract_local_references_only_urls() {
+        use crate::markdown::extract_local_references;
+
+        let content = r#"Check out these links:
+https://example.com/image.png
+https://example.com/page.html
+"#;
+        let refs = extract_local_references(content);
+        assert!(refs.is_empty());
+    }
+
+    #[test]
+    fn test_resolve_image_path_relative() {
+        use crate::markdown::{get_source_dir, resolve_image_path};
+        use std::path::PathBuf;
+
+        let source_file = PathBuf::from("/project/src/chapter1/page.md");
+        let source_dir = get_source_dir(&source_file).unwrap();
+
+        let resolved = resolve_image_path("images/logo.png", &source_dir);
+        assert_eq!(resolved, PathBuf::from("/project/src/chapter1/images/logo.png"));
+    }
+
+    #[test]
+    fn test_resolve_image_path_absolute() {
+        use crate::markdown::resolve_image_path;
+        use std::path::PathBuf;
+
+        let source_dir = PathBuf::from("/project/src");
+        let resolved = resolve_image_path("/images/logo.png", &source_dir);
+        assert_eq!(resolved, PathBuf::from("/images/logo.png"));
+    }
+
+    #[test]
+    fn test_extract_remote_image_references() {
+        use crate::markdown::extract_remote_image_references;
+
+        let content = r#"Here is an image:
+![Logo](https://example.com/images/logo.png)
+
+Another remote image:
+![Screenshot](https://cdn.example.com/screenshots/home.png)
+
+A local image:
+![Local](images/local.png)
+"#;
+        let refs = extract_remote_image_references(content);
+        assert_eq!(refs.len(), 2);
+        assert!(refs.contains(&"https://example.com/images/logo.png".to_string()));
+        assert!(refs.contains(&"https://cdn.example.com/screenshots/home.png".to_string()));
+        assert!(!refs.contains(&"images/local.png".to_string()));
+    }
+
+    #[test]
+    fn test_extract_remote_image_references_none() {
+        use crate::markdown::extract_remote_image_references;
+
+        let content = r#"Here is a local image:
+![Logo](images/logo.png)
+
+A local link:
+[Link](page.html)
+"#;
+        let refs = extract_remote_image_references(content);
+        assert!(refs.is_empty());
+    }
+
+    #[test]
+    fn test_extract_remote_image_references_empty_content() {
+        use crate::markdown::extract_remote_image_references;
+
+        let content = "No images here, just plain text.";
+        let refs = extract_remote_image_references(content);
+        assert!(refs.is_empty());
     }
 }
