@@ -338,3 +338,207 @@ fn test_build_help() {
         .assert()
         .success();
 }
+
+#[test]
+fn test_build_copies_local_images() {
+    let temp_dir = TempDir::new().unwrap();
+    let content_dir = temp_dir.path().join("content");
+    let output_dir = temp_dir.path().join("output");
+    fs::create_dir(&content_dir).unwrap();
+
+    let images_dir = content_dir.join("images");
+    fs::create_dir(&images_dir).unwrap();
+
+    fs::write(
+        content_dir.join("index.md"),
+        r#"---
+title: "Test Page"
+---
+
+# Test
+
+![Logo](images/logo.png)
+
+Some text with ![Icon](images/icon.png) inline.
+"#,
+    )
+    .unwrap();
+
+    fs::write(images_dir.join("logo.png"), "PNG_DATA").unwrap();
+    fs::write(images_dir.join("icon.png"), "PNG_DATA").unwrap();
+
+    Command::cargo_bin("rustpress-cli")
+        .unwrap()
+        .arg("build")
+        .arg("--input")
+        .arg(&content_dir)
+        .arg("--output")
+        .arg(&output_dir)
+        .assert()
+        .success();
+
+    assert!(output_dir.join("index.html").exists());
+    assert!(output_dir.join("images").is_dir());
+    assert!(output_dir.join("images").join("logo.png").exists());
+    assert!(output_dir.join("images").join("icon.png").exists());
+}
+
+#[test]
+fn test_build_copies_local_files_from_links() {
+    let temp_dir = TempDir::new().unwrap();
+    let content_dir = temp_dir.path().join("content");
+    let output_dir = temp_dir.path().join("output");
+    fs::create_dir(&content_dir).unwrap();
+
+    let docs_dir = content_dir.join("docs");
+    fs::create_dir(&docs_dir).unwrap();
+
+    fs::write(
+        content_dir.join("index.md"),
+        r#"---
+title: "Test Page"
+---
+
+# Test
+
+[Download Guide](docs/guide.pdf)
+"#,
+    )
+    .unwrap();
+
+    fs::write(docs_dir.join("guide.pdf"), "PDF_DATA").unwrap();
+
+    Command::cargo_bin("rustpress-cli")
+        .unwrap()
+        .arg("build")
+        .arg("--input")
+        .arg(&content_dir)
+        .arg("--output")
+        .arg(&output_dir)
+        .assert()
+        .success();
+
+    assert!(output_dir.join("index.html").exists());
+}
+
+#[test]
+fn test_build_ignores_external_urls() {
+    let temp_dir = TempDir::new().unwrap();
+    let content_dir = temp_dir.path().join("content");
+    let output_dir = temp_dir.path().join("output");
+    fs::create_dir(&content_dir).unwrap();
+
+    fs::write(
+        content_dir.join("index.md"),
+        r#"---
+title: "Test Page"
+---
+
+# Test
+
+![External Image](https://example.com/image.png)
+
+[External Link](https://example.com/page.html)
+"#,
+    )
+    .unwrap();
+
+    Command::cargo_bin("rustpress-cli")
+        .unwrap()
+        .arg("build")
+        .arg("--input")
+        .arg(&content_dir)
+        .arg("--output")
+        .arg(&output_dir)
+        .assert()
+        .success();
+
+    assert!(output_dir.join("index.html").exists());
+}
+
+#[test]
+fn test_convert_copies_local_images() {
+    let temp_dir = TempDir::new().unwrap();
+    let input_path = temp_dir.path().join("input.md");
+    let output_path = temp_dir.path().join("output.html");
+    let images_dir = temp_dir.path().join("images");
+    fs::create_dir(&images_dir).unwrap();
+
+    fs::write(
+        &input_path,
+        r#"---
+title: "Test Post"
+---
+
+# Hello World
+
+![Logo](images/logo.png)
+"#,
+    )
+    .unwrap();
+
+    fs::write(images_dir.join("logo.png"), "PNG_DATA").unwrap();
+
+    Command::cargo_bin("rustpress-cli")
+        .unwrap()
+        .arg("convert")
+        .arg("--input")
+        .arg(&input_path)
+        .arg("--output")
+        .arg(&output_path)
+        .assert()
+        .success();
+
+    assert!(output_path.exists());
+    assert!(output_path
+        .parent()
+        .unwrap()
+        .join("images")
+        .join("logo.png")
+        .exists());
+}
+
+#[test]
+fn test_build_with_nested_subdirectory_images() {
+    let temp_dir = TempDir::new().unwrap();
+    let content_dir = temp_dir.path().join("content");
+    let output_dir = temp_dir.path().join("output");
+    fs::create_dir(&content_dir).unwrap();
+
+    let chapter_dir = content_dir.join("chapter1");
+    fs::create_dir(&chapter_dir).unwrap();
+    let images_dir = chapter_dir.join("images");
+    fs::create_dir(&images_dir).unwrap();
+
+    fs::write(
+        chapter_dir.join("index.md"),
+        r#"---
+title: "Chapter 1"
+---
+
+# Chapter One
+
+![Diagram](images/diagram.png)
+"#,
+    )
+    .unwrap();
+
+    fs::write(images_dir.join("diagram.png"), "PNG_DATA").unwrap();
+
+    Command::cargo_bin("rustpress-cli")
+        .unwrap()
+        .arg("build")
+        .arg("--input")
+        .arg(&content_dir)
+        .arg("--output")
+        .arg(&output_dir)
+        .assert()
+        .success();
+
+    assert!(output_dir.join("chapter1").join("index.html").exists());
+    assert!(output_dir
+        .join("chapter1")
+        .join("images")
+        .join("diagram.png")
+        .exists());
+}

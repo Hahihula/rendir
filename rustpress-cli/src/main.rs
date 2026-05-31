@@ -86,6 +86,7 @@ struct SiteItem {
     rendered: String,
     metadata: std::collections::HashMap<String, String>,
     is_fallback: bool,
+    asset_references: Vec<PathBuf>,
 }
 
 impl SiteItem {
@@ -95,6 +96,7 @@ impl SiteItem {
         file_stem: String,
         rendered: String,
         metadata: std::collections::HashMap<String, String>,
+        asset_references: Vec<PathBuf>,
     ) -> Self {
         Self {
             rel_path,
@@ -103,6 +105,7 @@ impl SiteItem {
             rendered,
             metadata,
             is_fallback: false,
+            asset_references,
         }
     }
 
@@ -165,12 +168,14 @@ fn scan_markdown_dir(
             });
 
             let output_path = output_dir.join(rel_path).with_extension("html");
+            let asset_references: Vec<PathBuf> = item.image_references.clone();
             items.push(SiteItem::new(
                 rel_path.to_path_buf(),
                 output_path,
                 file_stem,
                 item.rendered_content.unwrap_or_default(),
                 item.metadata,
+                asset_references,
             ));
         }
     }
@@ -709,6 +714,35 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
 
         fs::write(&item.output_path, &html)?;
 
+        if let Some(parent) = item.output_path.parent() {
+            for asset_path in &item.asset_references {
+                if asset_path.exists() {
+                    let relative_to_content = asset_path
+                        .strip_prefix(src_dir.as_path())
+                        .unwrap_or(asset_path.as_path());
+                    let asset_relative = if item.rel_path.parent().is_some() && item.rel_path.parent() != Some(Path::new("")) {
+                        let components: Vec<_> = relative_to_content.components().collect();
+                        if components.len() > 1 {
+                            PathBuf::from_iter(components[1..].iter())
+                        } else {
+                            PathBuf::from_iter(components.iter())
+                        }
+                    } else {
+                        relative_to_content.to_path_buf()
+                    };
+                    let dest = parent.join(asset_relative);
+                    if let Some(dest_parent) = dest.parent() {
+                        fs::create_dir_all(dest_parent).ok();
+                    }
+                    if !dest.exists() {
+                        fs::copy(asset_path, &dest).map_err(|e| {
+                            eprintln!("Warning: Failed to copy asset '{}': {}", asset_path.display(), e);
+                        }).ok();
+                    }
+                }
+            }
+        }
+
         println!("Generated: {}", &item.output_path.display());
     }
 
@@ -915,6 +949,7 @@ fn run_build_i18n(
                             rendered: item.rendered,
                             metadata,
                             is_fallback: true,
+                            asset_references: item.asset_references,
                         });
                     }
                 }

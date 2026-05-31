@@ -207,10 +207,10 @@ pub fn parse_markdown_with_path(
     // Convert markdown to HTML
     let html_output = parse_markdown_fragment(&processed_content);
 
-    // Extract image references if path is provided
-    let image_references = if let Some(ref p) = path {
+    // Extract local references (images and links) if path is provided
+    let local_references = if let Some(ref p) = path {
         let source_dir = get_source_dir(p);
-        extract_image_references(content)
+        extract_local_references(content)
             .into_iter()
             .map(|rel_path| {
                 if let Some(ref dir) = source_dir {
@@ -230,7 +230,7 @@ pub fn parse_markdown_with_path(
         metadata,
         rendered_content: Some(html_output),
         related_items: Vec::new(),
-        image_references,
+        image_references: local_references,
         language: None,
         translations: Vec::new(),
         is_fallback: false,
@@ -264,6 +264,44 @@ pub fn extract_image_references(content: &str) -> Vec<String> {
         .captures_iter(content)
         .map(|cap| cap[2].to_string())
         .collect()
+}
+
+/// Extract all local file references from markdown content (images, links, etc.)
+/// Returns a list of paths that appear to be local references (not URLs)
+pub fn extract_local_references(content: &str) -> Vec<String> {
+    let mut references = Vec::new();
+
+    let image_regex = Regex::new(r"!\[([^\]]*)\]\(([^)]+)\)").unwrap();
+    let image_matches: Vec<_> = image_regex.captures_iter(content).collect();
+    for cap in &image_matches {
+        let path = &cap[2];
+        if is_local_path(path) {
+            references.push(path.to_string());
+        }
+    }
+
+    let link_regex = Regex::new(r"\[([^\]]*)\]\(([^)]+)\)").unwrap();
+    for cap in link_regex.captures_iter(content) {
+        let full_match_start = cap.get(0).map(|m| m.start()).unwrap_or(0);
+        if full_match_start > 0 && &content[full_match_start..full_match_start + 2] == "![" {
+            continue;
+        }
+        let path = &cap[2];
+        if is_local_path(path) {
+            references.push(path.to_string());
+        }
+    }
+
+    references
+}
+
+/// Check if a path is a local path (not a URL)
+fn is_local_path(path: &str) -> bool {
+    !path.starts_with("http://")
+        && !path.starts_with("https://")
+        && !path.starts_with("//")
+        && !path.starts_with("mailto:")
+        && !path.starts_with("tel:")
 }
 
 /// Get the directory containing a file path (for relative path resolution)
