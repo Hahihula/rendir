@@ -1,7 +1,7 @@
 # TODO:
 
-  * upgrade all the templates and components to use vuejs from cdn
-  * on build time download and save or copy local link to js and css to dest folder
+  ✓ upgrade all the templates and components to use vuejs from cdn
+  ✓ on build time download and save or copy local link to js and css to dest folder
   * optionaly merge images css and js files to single html file
   * optionally minimize the resulting html/css/js
   * maybe use rolldown ?
@@ -12,7 +12,7 @@
   	d) gitlab ci template
     e) mirror to github
   * test on some public mdbooks
-  * add support for multilanguage sites
+  ✓ add support for multilanguage sites
   * blog and cookbook should have rss feature
   * rss should have absolute paths
   * teplates should be either 1) relative/absolute local path 2) name of template from official (my) repository (curently non existing) 3) url to teplate repository

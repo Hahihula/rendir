@@ -324,9 +324,18 @@
 
         const app = createApp({
             setup() {
-                const store = JSON.parse(
-                    document.getElementById('store-data').textContent
-                );
+                const storeDataEl = document.getElementById('store-data');
+                let store;
+                try {
+                    store = JSON.parse(storeDataEl.textContent);
+                    console.log('Store parsed successfully:', store);
+                    console.log('Chapters count:', store.chapters?.length);
+                    console.log('Current chapter:', store.current_chapter);
+                } catch (e) {
+                    console.error('Failed to parse store data:', e);
+                    console.error('Raw data:', storeDataEl.textContent.substring(0, 500));
+                    store = { title: 'Error', chapters: [], current_chapter: { title: 'Parse Error', url: '', content: '<p>Failed to parse store data</p>' } };
+                }
 
                 const searchQuery = ref('');
 

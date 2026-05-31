@@ -1,6 +1,180 @@
 use assert_cmd::Command;
 use std::fs;
+use std::process::Command as ProcessCommand;
 use tempfile::TempDir;
+
+#[test]
+#[ignore]
+fn test_build_rust_lang_book() {
+    let temp_dir = TempDir::new().unwrap();
+    let temp_path = temp_dir.path().to_path_buf();
+    let book_dir = temp_path.join("book");
+    let output_dir = temp_path.join("output");
+
+    println!("\n\n===== TEST OUTPUT LOCATION =====");
+    println!("Output dir: {}", output_dir.display());
+    println!("Temp dir will NOT be deleted: {}", temp_path.display());
+    println!("==============================\n\n");
+
+    // Keep temp_dir alive to prevent deletion
+    std::mem::forget(temp_dir);
+
+    println!("Cloning rust-lang/book...");
+    let clone_result = ProcessCommand::new("git")
+        .args([
+            "clone",
+            "--depth",
+            "1",
+            "https://github.com/rust-lang/book",
+            book_dir.to_str().unwrap(),
+        ])
+        .output();
+
+    match clone_result {
+        Ok(output) if output.status.success() => {}
+        _ => {
+            println!("Skipping test: failed to clone rust-lang/book");
+            return;
+        }
+    }
+
+    println!("Building rust-lang/book with rustpress...");
+    let result = Command::cargo_bin("rustpress-cli")
+        .unwrap()
+        .arg("build")
+        .arg("--input")
+        .arg(&book_dir)
+        .arg("--output")
+        .arg(&output_dir)
+        .arg("--template")
+        .arg("mdbook")
+        .output();
+
+    let output = match result {
+        Ok(output) => output,
+        Err(e) => {
+            panic!("Failed to run build command: {}", e);
+        }
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if !output.status.success() {
+        eprintln!("Build failed. stderr: {}", stderr);
+    }
+    println!("Build output: {}", stdout);
+
+    assert!(output.status.success(), "Failed to build rust-lang/book");
+    assert!(
+        output_dir.join("index.html").exists(),
+        "index.html not generated"
+    );
+}
+
+#[test]
+#[ignore]
+fn test_build_mdbook_documentation() {
+    let temp_dir = TempDir::new().unwrap();
+    let temp_path = temp_dir.path().to_path_buf();
+    let mdbook_dir = temp_path.join("mdbook");
+    let output_dir = temp_path.join("output");
+
+    println!("\n\n===== TEST OUTPUT LOCATION =====");
+    println!("Output dir: {}", output_dir.display());
+    println!("Temp dir will NOT be deleted: {}", temp_path.display());
+    println!("==============================\n\n");
+
+    // Keep temp_dir alive to prevent deletion
+    std::mem::forget(temp_dir);
+
+    println!("Cloning rust-lang/mdBook...");
+    let clone_result = ProcessCommand::new("git")
+        .args([
+            "clone",
+            "--depth",
+            "1",
+            "https://github.com/rust-lang/mdBook",
+            mdbook_dir.to_str().unwrap(),
+        ])
+        .output();
+
+    match clone_result {
+        Ok(output) if output.status.success() => {}
+        _ => {
+            println!("Skipping test: failed to clone rust-lang/mdBook");
+            return;
+        }
+    }
+
+    let guide_dir = mdbook_dir.join("guide");
+    if !guide_dir.exists() {
+        println!("Skipping test: mdBook guide directory not found");
+        return;
+    }
+
+    println!("guide/ dir contents:");
+    for entry in std::fs::read_dir(&guide_dir).unwrap() {
+        println!("  {:?}", entry.unwrap().path());
+    }
+
+    let result = Command::cargo_bin("rustpress-cli")
+        .unwrap()
+        .arg("build")
+        .arg("--input")
+        .arg(&guide_dir)
+        .arg("--output")
+        .arg(&output_dir)
+        .arg("--template")
+        .arg("mdbook")
+        .output();
+
+    let output = match result {
+        Ok(output) => output,
+        Err(e) => {
+            panic!("Failed to run build command: {}", e);
+        }
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Debug: list output directory contents
+    if output_dir.exists() {
+        println!("Output directory exists, contents:");
+        for entry in std::fs::read_dir(&output_dir).unwrap() {
+            println!("  {:?}", entry.unwrap().path());
+        }
+    } else {
+        println!("Output directory does not exist");
+    }
+
+    println!("Build stdout: {}", stdout);
+    if !output.status.success() {
+        eprintln!("Build failed. stderr: {}", stderr);
+    }
+
+    assert!(
+        output.status.success(),
+        "Failed to build mdBook documentation"
+    );
+
+    // mdBook outputs to src/ subdirectory when building guide
+    let src_output_dir = output_dir.join("src");
+    let has_html = src_output_dir.exists()
+        && std::fs::read_dir(&src_output_dir).unwrap().any(|e| {
+            let path = e.unwrap().path();
+            path.is_file() && path.extension().map_or(false, |ext| ext == "html")
+        });
+
+    assert!(has_html, "No HTML files generated in output/src/");
+
+    // Check for specific expected files
+    assert!(
+        src_output_dir.join("README.html").exists() || src_output_dir.join("SUMMARY.html").exists(),
+        "Expected README.html or SUMMARY.html not found"
+    );
+}
 
 #[test]
 fn test_i18n_build_with_fallback() {

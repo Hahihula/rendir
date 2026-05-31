@@ -287,7 +287,9 @@ pub fn extract_local_references(content: &str) -> Vec<String> {
     let link_regex = Regex::new(r"\[([^\]]*)\]\(([^)]+)\)").unwrap();
     for cap in link_regex.captures_iter(content) {
         let full_match_start = cap.get(0).map(|m| m.start()).unwrap_or(0);
-        if full_match_start > 0 && &content[full_match_start..full_match_start + 2] == "![" {
+        let check_pos = full_match_start.saturating_sub(2);
+        let snippet = &content[check_pos..];
+        if snippet.starts_with("![") {
             continue;
         }
         let path = &cap[2];
