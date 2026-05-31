@@ -33,6 +33,7 @@ All templates embed store data via `<script id="store-data" type="application/js
 - 🖼️ **Vue SPA templates** — Blog, Slideshow, mdbook
 - 🔍 **Full-text search** — Inverted index built at build time, searched client-side
 - ⚡ **Dev server with live reload** — File watching + auto-rebuild + browser refresh
+- 🌐 **Internationalization (i18n)** — Multi-language support with automatic fallback
 - 🌐 WebAssembly compatibility
 - 📂 Directory-based content organization
 - 🔌 Extensible architecture with component registry
@@ -223,7 +224,11 @@ Vue parses this and uses it as reactive store data.
   posts: [{ id, title, date, author, excerpt, tags, url }],
   tags: [{ name: "rust", count: 3 }],
   recent_posts: [...],
-  search_index: "{...}"  // JSON-serialized search index
+  search_index: "{...}",  // JSON-serialized search index
+  languages: [            // Available languages for i18n
+    { code: "en", name: "English", is_default: true },
+    { code: "de", name: "Deutsch", is_default: false }
+  ]
 }
 ```
 
@@ -251,6 +256,108 @@ Rustpress builds a **full-text search index** at build time:
    - Snippet extraction with context
 
 Both **blog** and **mdbook** templates use this same shared search component.
+
+## Internationalization (i18n)
+
+Rustpress supports multi-language sites with automatic language detection and fallback.
+
+> **Note:** mdbook i18n works differently and is not yet supported. Only **blog** and **slideshow** templates support multi-language sites.
+
+### How It Works
+
+1. **Language Detection** — Languages are automatically detected from subdirectories (e.g., `en/`, `de/`, `cs/`, `zh/`)
+2. **Directory Structure** — Each language has its own subdirectory with markdown files
+3. **Automatic Fallback** — If a page doesn't exist in a language, content falls back to the default language
+4. **hreflang Tags** — SEO-friendly hreflang meta tags are automatically generated
+
+### Directory Structure
+
+```
+content/
+├── en/
+│   ├── landing.md
+│   ├── about.md
+│   └── posts/
+│       └── getting-started.md
+├── de/
+│   ├── landing.md
+│   ├── about.md
+│   └── posts/
+│       └── getting-started.md
+├── cs/                     # Czech - about.md missing, falls back to en/
+│   ├── landing.md
+│   └── posts/
+│       └── rust-history.md
+└── zh/                     # Chinese - posts/ missing entirely, falls back to en/
+    ├── landing.md
+    └── about.md
+```
+
+### Building i18n Sites
+
+The build command automatically detects i18n structure:
+
+```bash
+cargo run -p rustpress-cli -- build \
+  --input examples/i18n/content/ \
+  --output /tmp/i18n-site/ \
+  --template blog
+```
+
+This generates:
+
+```
+output/
+├── index.html              # Language selector page
+├── en/
+│   ├── landing.html
+│   ├── about.html
+│   └── posts/
+├── de/
+│   └── ...
+├── cs/                     # Falls back to en/ for missing pages
+│   └── ...
+└── zh/                     # Falls back to en/ for missing pages
+    └── ...
+```
+
+### Fallback Behavior
+
+| Scenario | Behavior |
+|----------|----------|
+| Page exists in language | Uses that translation |
+| Page missing in language | Falls back to default language content |
+| Page missing in all languages | Page not generated |
+
+### Language Selector Component
+
+The blog template includes a Vue 3 `LanguageSelector` component that:
+- Auto-hides when only one language exists
+- Shows a dropdown with all available languages
+- Works on **any page** - clicking a language switches to the **same page** in another language
+- Uses native language names (e.g., "Deutsch" not "German")
+- Automatically determines the current page path and generates language-switched URLs
+
+For example, if you're on `/en/posts/getting-started.html`:
+- Clicking "Deutsch" takes you to `/de/posts/getting-started.html`
+- Clicking "Čeština" takes you to `/cs/posts/getting-started.html`
+
+### Language Codes
+
+Supported language codes with native names:
+
+| Code | Native Name |
+|------|-------------|
+| en | English |
+| de | Deutsch |
+| cs | Čeština |
+| zh | 中文 |
+| fr | Français |
+| es | Español |
+| ja | 日本語 |
+| ko | 한국어 |
+| ru | Русский |
+| ... | (and many more) |
 
 ## WebAssembly Usage
 
@@ -305,19 +412,21 @@ rustpress/
 │       ├── types.rs         # Core types + Vue Store types
 │       ├── vue.rs           # Vue component support
 │       ├── mdbook.rs        # mdbook project parsing
+│       ├── i18n.rs          # Internationalization support
 │       ├── components/      # Component registry + builtins
 │       └── templates/       # Built-in HTML templates
 │           ├── blog/        # Blog Vue SPA templates
 │           ├── slideshow/   # Slideshow Vue SPA templates
 │           ├── mdbook/      # mdbook Vue SPA template
-│           └── shared/      # Shared components (search.js)
+│           └── shared/      # Shared components (search.js, language-selector.js)
 ├── rustpress-cli/       # CLI application
 ├── rustpress-wasm/      # WASM bindings
 └── examples/            # Example projects
     ├── blog/            # Blog example
     ├── slideshow/       # Slideshow example
     ├── mdbook/          # mdbook ingestion example
-    └── search/          # Search functionality example
+    ├── search/          # Search functionality example
+    └── i18n/            # Multi-language site example
 ```
 
 ## Development
@@ -336,7 +445,7 @@ cargo build
 # Build WASM package
 cd rustpress-wasm
 wasm-pack build --target web
-cp ./demmo/index.html ./dist/
+cp ./demo/index.html ./dist/
 cp ./pkg/* ./dist/
 ```
 than just serve the `./dist/` folder
@@ -363,6 +472,9 @@ cargo run -p rustpress-cli -- build -i examples/slideshow/content -o /tmp/slides
 
 # mdbook
 cargo run -p rustpress-cli -- build -i examples/mdbook/content -o /tmp/mdbook -t mdbook
+
+# Multi-language (i18n) - blog and slideshow templates
+cargo run -p rustpress-cli -- build -i examples/i18n/content -o /tmp/i18n -t blog
 ```
 
 ## License

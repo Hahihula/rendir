@@ -10,6 +10,7 @@ const MDBOOK_TEMPLATE: &str = include_str!("templates/mdbook/index.html");
 const BLOG_INDEX_TEMPLATE: &str = include_str!("templates/blog/index.html");
 const BLOG_POST_TEMPLATE: &str = include_str!("templates/blog/post.html");
 const SHARED_SEARCH_JS: &str = include_str!("templates/shared/search.js");
+const SHARED_LANGUAGE_SELECTOR_JS: &str = include_str!("templates/shared/language-selector.js");
 
 /// Get a builtin template by name
 pub fn get_builtin_template(name: &str) -> Option<&'static str> {
@@ -242,7 +243,11 @@ pub fn render_slideshow_vue(item: &ContentItem) -> String {
     let store_json = serialize_slideshow_store(&store);
 
     let template = SLIDESHOW_TEMPLATE;
-    template.replace("{{STORE_DATA}}", &store_json)
+    let html = template.replace("{{STORE_DATA}}", &store_json);
+    html.replace(
+        "{{LANGUAGE_SELECTOR_SCRIPT}}",
+        &format!("<script>\n{}</script>", SHARED_LANGUAGE_SELECTOR_JS),
+    )
 }
 
 /// Render presenter view using Vue SPA template with embedded store data
@@ -259,9 +264,13 @@ pub fn render_blog_index_vue(store: &BlogIndexStore) -> String {
     let store_json =
         serde_json::to_string(store).unwrap_or_else(|_| r#"{"title":"Error"}"#.to_string());
     let html = BLOG_INDEX_TEMPLATE.replace("{{STORE_DATA}}", &store_json);
-    html.replace(
+    let html = html.replace(
         "{{SEARCH_COMPONENT_SCRIPT}}",
         &format!("<script>\n{}</script>", SHARED_SEARCH_JS),
+    );
+    html.replace(
+        "{{LANGUAGE_SELECTOR_SCRIPT}}",
+        &format!("<script>\n{}</script>", SHARED_LANGUAGE_SELECTOR_JS),
     )
 }
 
@@ -277,6 +286,7 @@ pub fn render_mdbook_vue(
         chapters: chapters.to_vec(),
         current_chapter: current_chapter.clone(),
         search_index: search_index_json.to_string(),
+        languages: Vec::new(),
     };
     let store_json =
         serde_json::to_string(&store).unwrap_or_else(|_| r#"{"title":"Error"}"#.to_string());

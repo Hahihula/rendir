@@ -4,12 +4,13 @@ use notify::{RecursiveMode, Watcher};
 use rustpress_core::components::{builtins::register_builtin_components, ComponentRegistry};
 use rustpress_core::{
     get_builtin_template,
+    i18n::I18nBuilder,
     mdbook::{BookToml, Chapter, Summary},
     parse_markdown_with_path, render_blog_index_vue, render_html, render_mdbook_vue,
     render_slideshow_vue, render_with_template,
     rss::{parse_date_to_rfc2822, strip_html, RssFeed, RssItem},
     search::SearchDocument,
-    types::{BlogIndexStore, BlogPostSummary, ChapterNav, ChapterStore, ContentItem, TagCount},
+    types::{BlogIndexStore, BlogPostSummary, ChapterNav, ChapterStore, ContentItem, Language, TagCount},
 };
 use std::fs::{self, File};
 use std::io::Write;
@@ -20,14 +21,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tiny_http::{Header, Response, Server};
 use walkdir::WalkDir;
-
-type ParsedMdItem = (
-    PathBuf,
-    PathBuf,
-    String,
-    String,
-    std::collections::HashMap<String, String>,
-);
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -86,6 +79,105 @@ enum Commands {
     },
 }
 
+struct SiteItem {
+    rel_path: PathBuf,
+    output_path: PathBuf,
+    file_stem: String,
+    rendered: String,
+    metadata: std::collections::HashMap<String, String>,
+    is_fallback: bool,
+}
+
+impl SiteItem {
+    fn new(
+        rel_path: PathBuf,
+        output_path: PathBuf,
+        file_stem: String,
+        rendered: String,
+        metadata: std::collections::HashMap<String, String>,
+    ) -> Self {
+        Self {
+            rel_path,
+            output_path,
+            file_stem,
+            rendered,
+            metadata,
+            is_fallback: false,
+        }
+    }
+
+    fn rel_path_str(&self) -> String {
+        self.rel_path.to_string_lossy().replace(".md", "")
+    }
+}
+
+fn scan_markdown_dir(
+    src_dir: &Path,
+    output_dir: &Path,
+    registry: &ComponentRegistry,
+    lang_code: Option<&str>,
+) -> Result<(Vec<SearchDocument>, Vec<SiteItem>)> {
+    let mut search_docs = Vec::new();
+    let mut items = Vec::new();
+
+    for entry in WalkDir::new(src_dir) {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "md") {
+            let content = fs::read_to_string(path)?;
+            let item = parse_markdown_with_path(&content, Some(registry), Some(PathBuf::from(path)));
+
+            let rel_path = path.strip_prefix(src_dir).unwrap_or(path);
+            let rel_path_str = rel_path.to_string_lossy().replace(".md", "");
+            let file_stem = rel_path
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "Chapter".to_string());
+
+            let plain_content = item
+                .rendered_content
+                .as_deref()
+                .unwrap_or("")
+                .replace("<", " <")
+                .split_whitespace()
+                .filter(|w| !w.starts_with('<') || w.ends_with('>'))
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            let (id, url) = match lang_code {
+                Some(code) => (
+                    format!("{}/{}", code, rel_path_str.clone()),
+                    format!("{}/{}.html", code, rel_path_str.replace("src/", "")),
+                ),
+                None => (
+                    rel_path_str.clone(),
+                    format!("{}.html", rel_path_str.replace("src/", "")),
+                ),
+            };
+
+            search_docs.push(SearchDocument {
+                id,
+                title: item.metadata.get("title").cloned().unwrap_or_else(|| file_stem.clone()),
+                content: plain_content,
+                url,
+                tags: vec![],
+            });
+
+            let output_path = output_dir.join(rel_path).with_extension("html");
+            items.push(SiteItem::new(
+                rel_path.to_path_buf(),
+                output_path,
+                file_stem,
+                item.rendered_content.unwrap_or_default(),
+                item.metadata,
+            ));
+        }
+    }
+
+    Ok((search_docs, items))
+}
+
 fn render_nav_tree(chapters: &[Chapter], _base_path: &Path) -> String {
     let mut html = String::new();
     for chapter in chapters {
@@ -119,13 +211,12 @@ fn get_all_chapters(chapters: &[Chapter]) -> Vec<&Chapter> {
 }
 
 /// Build ChapterStore from Chapter with prev/next navigation
-#[allow(clippy::type_complexity)]
 fn build_chapter_store(
     chapter: &Chapter,
     all_chapters: &[&Chapter],
     current_idx: usize,
     content: String,
-    all_items: &[ParsedMdItem],
+    all_items: &[SiteItem],
 ) -> ChapterStore {
     let url = chapter
         .path
@@ -172,18 +263,10 @@ fn build_chapter_store(
                 .iter()
                 .position(|c| c.path == child.path)
                 .unwrap_or(current_idx);
-            // Look up the child's content from all_items
             let child_content = all_items
                 .iter()
-                .find(|(rp, _, _, _, _)| {
-                    rp.to_string_lossy().replace(".md", "").replace("src/", "")
-                        == child
-                            .path
-                            .to_string_lossy()
-                            .replace(".md", "")
-                            .replace("src/", "")
-                })
-                .map(|(_, _, _, rendered, _)| rendered.clone())
+                .find(|item| item.rel_path_str().replace("src/", "") == child.path.to_string_lossy().replace(".md", "").replace("src/", ""))
+                .map(|item| item.rendered.clone())
                 .unwrap_or_default();
             build_chapter_store(child, all_chapters, child_idx, child_content, all_items)
         })
@@ -197,12 +280,12 @@ fn build_chapter_store(
         children,
         prev_chapter,
         next_chapter,
+        translations: Vec::new(),
     }
 }
 
 /// Build all chapters as ChapterStore for Vue SPA
-#[allow(clippy::type_complexity)]
-fn build_all_chapter_stores(chapters: &[Chapter], all_items: &[ParsedMdItem]) -> Vec<ChapterStore> {
+fn build_all_chapter_stores(chapters: &[Chapter], all_items: &[SiteItem]) -> Vec<ChapterStore> {
     let all = get_all_chapters(chapters);
     let all_refs: Vec<&Chapter> = all.to_vec();
 
@@ -213,15 +296,8 @@ fn build_all_chapter_stores(chapters: &[Chapter], all_items: &[ParsedMdItem]) ->
             let idx = all.iter().position(|c| c.path == ch.path).unwrap_or(i);
             let content = all_items
                 .iter()
-                .find(|(rp, _, _, _, _)| {
-                    rp.to_string_lossy().replace(".md", "").replace("src/", "")
-                        == ch
-                            .path
-                            .to_string_lossy()
-                            .replace(".md", "")
-                            .replace("src/", "")
-                })
-                .map(|(_, _, _, rendered, _)| rendered.clone())
+                .find(|item| item.rel_path_str().replace("src/", "") == ch.path.to_string_lossy().replace(".md", "").replace("src/", ""))
+                .map(|item| item.rendered.clone())
                 .unwrap_or_default();
             build_chapter_store(ch, &all_refs, idx, content, all_items)
         })
@@ -354,6 +430,13 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
         input.to_path_buf()
     };
 
+    let detected_languages = I18nBuilder::detect_languages(&src_dir);
+    let is_i18n = detected_languages.len() > 1;
+
+    if is_i18n {
+        return run_build_i18n(input, output, template, &detected_languages);
+    }
+
     let builtin_template_name: Option<String> = template.as_ref().and_then(|p| {
         let name = p.to_string_lossy();
 
@@ -394,56 +477,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
         .and_then(|b| b.book.title.clone())
         .unwrap_or_else(|| "Book".to_string());
 
-    let mut search_docs: Vec<SearchDocument> = Vec::new();
-    let mut all_items: Vec<ParsedMdItem> = Vec::new();
-
-    for entry in WalkDir::new(&src_dir) {
-        let entry = entry?;
-        let path = entry.path();
-
-        if path.is_file() && path.extension().is_some_and(|ext| ext == "md") {
-            let content = fs::read_to_string(path)?;
-            let item =
-                parse_markdown_with_path(&content, Some(&registry), Some(PathBuf::from(path)));
-
-            let rel_path = path.strip_prefix(&src_dir)?;
-            let rel_path_str = rel_path.to_string_lossy().replace(".md", "");
-            let file_stem = rel_path
-                .file_stem()
-                .map(|s| s.to_string_lossy().to_string())
-                .unwrap_or_else(|| "Chapter".to_string());
-
-            let plain_content = item
-                .rendered_content
-                .as_deref()
-                .unwrap_or("")
-                .replace("<", " <")
-                .split_whitespace()
-                .filter(|w| !w.starts_with('<') || w.ends_with('>'))
-                .collect::<Vec<_>>()
-                .join(" ");
-
-            search_docs.push(SearchDocument {
-                id: rel_path_str.clone(),
-                title: item
-                    .metadata
-                    .get("title")
-                    .cloned()
-                    .unwrap_or_else(|| file_stem.clone()),
-                content: plain_content,
-                url: format!("{}.html", rel_path_str.replace("src/", "")),
-                tags: vec![],
-            });
-
-            all_items.push((
-                path.strip_prefix(&src_dir).unwrap().into(),
-                output.join(rel_path).with_extension("html"),
-                file_stem,
-                item.rendered_content.unwrap_or_default(),
-                item.metadata,
-            ));
-        }
-    }
+    let (search_docs, all_items) = scan_markdown_dir(&src_dir, output, &registry, None)?;
 
     let search_index_len = search_docs.len();
 
@@ -470,32 +504,32 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
     let landing_page_store = {
         let all_posts: Vec<_> = all_items
             .iter()
-            .filter(|(rp, _, _, _, _)| rp.to_string_lossy().contains("posts/"))
+            .filter(|item| item.rel_path_str().contains("posts/"))
             .collect();
 
         let posts: Vec<BlogPostSummary> = all_posts
             .iter()
-            .map(|(rp, _, _, _, meta)| {
-                let post_tags: Vec<String> = meta
+            .map(|item| {
+                let post_tags: Vec<String> = item.metadata
                     .get("tags")
                     .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                     .unwrap_or_default();
                 BlogPostSummary {
-                    id: rp.to_string_lossy().replace(".md", ""),
-                    title: meta.get("title").cloned().unwrap_or_default(),
-                    date: meta.get("date").cloned().unwrap_or_default(),
-                    author: meta.get("author").cloned().unwrap_or_default(),
+                    id: item.rel_path_str(),
+                    title: item.metadata.get("title").cloned().unwrap_or_default(),
+                    date: item.metadata.get("date").cloned().unwrap_or_default(),
+                    author: item.metadata.get("author").cloned().unwrap_or_default(),
                     excerpt: String::new(),
                     tags: post_tags,
-                    url: format!("{}.html", rp.to_string_lossy().replace(".md", "")),
+                    url: format!("{}.html", item.rel_path_str()),
                 }
             })
             .collect();
 
         let mut all_tags: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();
-        for (_, _, _, _, meta) in &all_posts {
-            if let Some(tags) = meta.get("tags") {
+        for item in &all_posts {
+            if let Some(tags) = item.metadata.get("tags") {
                 for tag in tags.split(',') {
                     *all_tags.entry(tag.trim().to_string()).or_insert(0) += 1;
                 }
@@ -509,17 +543,17 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
         let recent_posts: Vec<BlogPostSummary> = all_posts
             .iter()
             .take(5)
-            .map(|(rp, _, _, _, meta)| BlogPostSummary {
-                id: rp.to_string_lossy().replace(".md", ""),
-                title: meta.get("title").cloned().unwrap_or_default(),
-                date: meta.get("date").cloned().unwrap_or_default(),
-                author: meta.get("author").cloned().unwrap_or_default(),
+            .map(|item| BlogPostSummary {
+                id: item.rel_path_str(),
+                title: item.metadata.get("title").cloned().unwrap_or_default(),
+                date: item.metadata.get("date").cloned().unwrap_or_default(),
+                author: item.metadata.get("author").cloned().unwrap_or_default(),
                 excerpt: String::new(),
-                tags: meta
+                tags: item.metadata
                     .get("tags")
                     .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                     .unwrap_or_default(),
-                url: format!("{}.html", rp.to_string_lossy().replace(".md", "")),
+                url: format!("{}.html", item.rel_path_str()),
             })
             .collect();
 
@@ -531,15 +565,16 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
             tags,
             recent_posts,
             search_index: search_index.clone(),
+            languages: detected_languages.clone(),
         }
     };
 
-    for (rel_path, output_path, file_stem, rendered, metadata) in &all_items {
-        if let Some(parent) = output_path.parent() {
+    for item in &all_items {
+        if let Some(parent) = item.output_path.parent() {
             fs::create_dir_all(parent)?;
         }
 
-        let rel_path_str = rel_path.to_string_lossy().replace(".md", "");
+        let rel_path_str = item.rel_path_str();
 
         let html = if let Some(ref tmpl_name) = builtin_template_name {
             let is_post = rel_path_str.contains("posts/");
@@ -554,11 +589,8 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
             };
 
             if is_landing {
-                // Use Vue SPA rendering for blog index
                 render_blog_index_vue(&landing_page_store)
             } else if is_mdbook {
-                // Use Vue SPA rendering for mdbook
-                // Flatten all chapters (including nested children) to find current
                 let all_chapters_flat = flatten_chapter_stores(&chapter_stores);
                 let current_store = all_chapters_flat
                     .iter()
@@ -574,29 +606,31 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                         &ContentItem {
                             path: None,
                             content: String::new(),
-                            metadata: metadata.clone(),
-                            rendered_content: Some(rendered.clone()),
+                            metadata: item.metadata.clone(),
+                            rendered_content: Some(item.rendered.clone()),
                             related_items: vec![],
                             image_references: vec![],
+                            language: None,
+                            translations: Vec::new(),
+                            is_fallback: false,
                         },
                         template_to_use,
                         get_builtin_template(template_to_use).unwrap_or_default(),
                     )
                 }
             } else if let Some(template_content) = get_builtin_template(template_to_use) {
-                let mut metadata = metadata.clone();
+                let mut metadata = item.metadata.clone();
 
                 if is_post {
-                    metadata.insert("content".to_string(), rendered.clone());
-                    // Tags already comma-separated in metadata
+                    metadata.insert("content".to_string(), item.rendered.clone());
                 } else {
                     let chapter_title = metadata
                         .get("title")
                         .cloned()
-                        .unwrap_or_else(|| file_stem.clone());
+                        .unwrap_or_else(|| item.file_stem.clone());
 
                     metadata.insert("title".to_string(), book_title.clone());
-                    metadata.insert("content".to_string(), rendered.clone());
+                    metadata.insert("content".to_string(), item.rendered.clone());
                     metadata.insert("chapter_title".to_string(), chapter_title);
                     metadata.insert("nav_tree".to_string(), nav_tree.clone());
                     metadata.insert("search_index".to_string(), search_index.clone());
@@ -613,9 +647,12 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     path: None,
                     content: String::new(),
                     metadata,
-                    rendered_content: Some(rendered.clone()),
+                    rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                    language: None,
+                    translations: Vec::new(),
+                    is_fallback: false,
                 };
 
                 render_with_template(&content_item, template_to_use, template_content)
@@ -623,10 +660,13 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                 render_html(&ContentItem {
                     path: None,
                     content: String::new(),
-                    metadata: metadata.clone(),
-                    rendered_content: Some(rendered.clone()),
+                    metadata: item.metadata.clone(),
+                    rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                    language: None,
+                    translations: Vec::new(),
+                    is_fallback: false,
                 })
             }
         } else if let Some(ref content) = custom_template_content {
@@ -634,10 +674,13 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                 &ContentItem {
                     path: None,
                     content: String::new(),
-                    metadata: metadata.clone(),
-                    rendered_content: Some(rendered.clone()),
+                    metadata: item.metadata.clone(),
+                    rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                    language: None,
+                    translations: Vec::new(),
+                    is_fallback: false,
                 },
                 "custom",
                 content,
@@ -646,24 +689,27 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
             render_html(&ContentItem {
                 path: None,
                 content: String::new(),
-                metadata: metadata.clone(),
-                rendered_content: Some(rendered.clone()),
+                metadata: item.metadata.clone(),
+                rendered_content: Some(item.rendered.clone()),
                 related_items: vec![],
                 image_references: vec![],
+                language: None,
+                translations: Vec::new(),
+                is_fallback: false,
             })
         };
 
         if html.len() < 500 {
             eprintln!(
                 "WARNING: Generated file '{}' is very small ({} bytes). Possible template issue.",
-                output_path.display(),
+                item.output_path.display(),
                 html.len()
             );
         }
 
-        fs::write(output_path, &html)?;
+        fs::write(&item.output_path, &html)?;
 
-        println!("Generated: {}", &output_path.display());
+        println!("Generated: {}", &item.output_path.display());
     }
 
     if let Some(ref summary) = summary {
@@ -718,7 +764,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
     // Generate RSS feed.xml from any items with a date in metadata
     let dated_items: Vec<_> = all_items
         .iter()
-        .filter(|(_, _, _, _, meta)| meta.contains_key("date"))
+        .filter(|item| item.metadata.contains_key("date"))
         .collect();
 
     if !dated_items.is_empty() {
@@ -730,28 +776,26 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
 
         let mut feed = RssFeed::new(&feed_title, &description, "/");
 
-        // Sort by date descending
         let mut dated_sorted = dated_items.clone();
         dated_sorted.sort_by(|a, b| {
-            let date_a = a.4.get("date").map(|d| d.as_str()).unwrap_or("");
-            let date_b = b.4.get("date").map(|d| d.as_str()).unwrap_or("");
+            let date_a = a.metadata.get("date").map(|d| d.as_str()).unwrap_or("");
+            let date_b = b.metadata.get("date").map(|d| d.as_str()).unwrap_or("");
             date_b.cmp(date_a)
         });
 
-        // Limit to 20 items for the feed
-        for (rp, _, _, rendered, meta) in dated_sorted.iter().take(20) {
-            let title = meta.get("title").cloned().unwrap_or_default();
-            let date_str = meta.get("date").cloned().unwrap_or_default();
-            let author = meta.get("author").cloned();
-            let tags: Vec<String> = meta
+        for item in dated_sorted.iter().take(20) {
+            let title = item.metadata.get("title").cloned().unwrap_or_default();
+            let date_str = item.metadata.get("date").cloned().unwrap_or_default();
+            let author = item.metadata.get("author").cloned();
+            let tags: Vec<String> = item.metadata
                 .get("tags")
                 .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                 .unwrap_or_default();
 
-            let rel_path = rp.to_string_lossy().replace(".md", "");
+            let rel_path = item.rel_path_str();
             let url = format!("{}.html", rel_path.replace("src/", ""));
             let pub_date = parse_date_to_rfc2822(&date_str);
-            let description = strip_html(rendered);
+            let description = strip_html(&item.rendered);
 
             feed.add_item(RssItem {
                 title,
@@ -761,7 +805,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                 pub_date,
                 categories: tags,
                 guid: url,
-                content_html: Some(rendered.clone()),
+                content_html: Some(item.rendered.clone()),
             });
         }
 
@@ -772,6 +816,398 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
 
     println!("Build completed successfully.");
     Ok(())
+}
+
+/// Build a multi-language site (i18n)
+fn run_build_i18n(
+    input: &Path,
+    output: &Path,
+    template: &Option<PathBuf>,
+    languages: &[Language],
+) -> Result<()> {
+    let is_slideshow = template
+        .as_ref()
+        .is_some_and(|p| p.to_string_lossy().contains("slideshow"));
+    let mut registry = ComponentRegistry::new();
+    register_builtin_components(&mut registry);
+
+    let mut i18n_builder = I18nBuilder::new("en");
+    if let Err(e) = i18n_builder.build_index(input) {
+        eprintln!("Warning: i18n index build failed: {}", e);
+    }
+
+    let _default_lang = languages
+        .iter()
+        .find(|l| l.is_default)
+        .or(languages.first())
+        .cloned()
+        .unwrap_or(Language {
+            code: "en".to_string(),
+            name: "English".to_string(),
+            is_default: true,
+        });
+
+    let book_toml = input
+        .join("book.toml")
+        .exists()
+        .then(|| BookToml::from_path(&input.join("book.toml")).unwrap_or_default());
+
+    let src_dir = input.join(
+        book_toml
+            .as_ref()
+            .map(|b| b.book.src.as_str())
+            .unwrap_or("src"),
+    );
+    let src_dir = if src_dir.exists() {
+        src_dir
+    } else {
+        input.to_path_buf()
+    };
+
+    let book_title = book_toml
+        .as_ref()
+        .and_then(|b| b.book.title.clone())
+        .unwrap_or_else(|| "Site".to_string());
+
+    for lang in languages {
+        let lang_output = output.join(&lang.code);
+        fs::create_dir_all(&lang_output)?;
+
+        println!("Building {} ({}) site...", lang.name, lang.code);
+
+        let lang_src_dir = src_dir.join(&lang.code);
+        if !lang_src_dir.exists() {
+            eprintln!(
+                "Warning: Language directory '{}' does not exist, skipping",
+                lang_src_dir.display()
+            );
+            continue;
+        }
+
+        let (mut search_docs, mut all_items) = scan_markdown_dir(&lang_src_dir, &lang_output, &registry, Some(&lang.code))?;
+
+        for fallback_lang in languages {
+            let fallback_dir = src_dir.join(&fallback_lang.code);
+            if fallback_dir.exists() && fallback_dir != lang_src_dir {
+                let existing_paths: Vec<String> = all_items
+                    .iter()
+                    .map(|item| item.rel_path_str())
+                    .collect();
+
+                let (fallback_docs, fallback_items) = scan_markdown_dir(&fallback_dir, &lang_output, &registry, Some(&lang.code))?;
+
+                for (doc, item) in fallback_docs.into_iter().zip(fallback_items.into_iter()) {
+                    if !existing_paths.contains(&item.rel_path_str())
+                        && let Some((title, _fallback_content)) =
+                            i18n_builder.get_fallback_content(&item.rel_path_str())
+                    {
+                        let mut metadata = item.metadata.clone();
+                        metadata.insert("title".to_string(), title.clone());
+
+                        let mut new_doc = doc;
+                        new_doc.title = title.clone();
+
+                        search_docs.push(new_doc);
+                        all_items.push(SiteItem {
+                            rel_path: item.rel_path,
+                            output_path: item.output_path,
+                            file_stem: item.file_stem,
+                            rendered: item.rendered,
+                            metadata,
+                            is_fallback: true,
+                        });
+                    }
+                }
+            }
+        }
+
+        let search_index = if !search_docs.is_empty() {
+            let mut idx = rustpress_core::search::SearchIndex::new();
+            for doc in &search_docs {
+                idx.add_document(doc.clone());
+            }
+            let built = idx.build();
+            serde_json::to_string(&built).unwrap_or_else(|e| {
+                eprintln!("Search JSON error: {}", e);
+                String::new()
+            })
+        } else {
+            String::new()
+        };
+
+        let all_posts: Vec<_> = all_items
+            .iter()
+            .filter(|item| item.rel_path_str().contains("posts/"))
+            .collect();
+
+        let posts: Vec<BlogPostSummary> = all_posts
+            .iter()
+            .map(|item| {
+                let post_tags: Vec<String> = item.metadata
+                    .get("tags")
+                    .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
+                    .unwrap_or_default();
+                BlogPostSummary {
+                    id: item.rel_path_str(),
+                    title: item.metadata.get("title").cloned().unwrap_or_default(),
+                    date: item.metadata.get("date").cloned().unwrap_or_default(),
+                    author: item.metadata.get("author").cloned().unwrap_or_default(),
+                    excerpt: String::new(),
+                    tags: post_tags,
+                    url: format!("{}.html", item.rel_path_str()),
+                }
+            })
+            .collect();
+
+        let mut all_tags: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+        for item in &all_posts {
+            if let Some(tags) = item.metadata.get("tags") {
+                for tag in tags.split(',') {
+                    *all_tags.entry(tag.trim().to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+        let tags: Vec<TagCount> = all_tags
+            .into_iter()
+            .map(|(name, count)| TagCount { name, count })
+            .collect();
+
+        let recent_posts: Vec<BlogPostSummary> = all_posts
+            .iter()
+            .take(5)
+            .map(|item| BlogPostSummary {
+                id: item.rel_path_str(),
+                title: item.metadata.get("title").cloned().unwrap_or_default(),
+                date: item.metadata.get("date").cloned().unwrap_or_default(),
+                author: item.metadata.get("author").cloned().unwrap_or_default(),
+                excerpt: String::new(),
+                tags: item.metadata
+                    .get("tags")
+                    .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
+                    .unwrap_or_default(),
+                url: format!("{}.html", item.rel_path_str()),
+            })
+            .collect();
+
+        let hreflang_tags = generate_hreflang_tags(languages);
+
+        let landing_page_store = BlogIndexStore {
+            title: book_title.clone(),
+            description: format!("{} - {}", book_title, lang.name),
+            content: String::new(),
+            posts,
+            tags,
+            recent_posts,
+            search_index: search_index.clone(),
+            languages: languages.to_vec(),
+        };
+
+        for item in &all_items {
+            if let Some(parent) = item.output_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+
+            let rel_path_str = item.rel_path_str();
+            let is_post = rel_path_str.contains("posts/");
+            let is_landing = rel_path_str == "landing";
+            let is_presentation = rel_path_str == "presentation";
+
+            let translations = i18n_builder.get_translations(&rel_path_str);
+
+            let translations_json = serde_json::to_string(&translations).unwrap_or_default();
+            let mut metadata = item.metadata.clone();
+            metadata.insert("translations".to_string(), translations_json);
+
+            let html = if is_slideshow && is_presentation {
+                let content_item = ContentItem {
+                    path: None,
+                    content: String::new(),
+                    metadata: item.metadata.clone(),
+                    rendered_content: Some(item.rendered.clone()),
+                    related_items: vec![],
+                    image_references: vec![],
+                    language: Some(lang.code.clone()),
+                    translations,
+                    is_fallback: item.is_fallback,
+                };
+                let mut html = render_slideshow_vue(&content_item);
+                html = html.replace("{{HREFLANG_TAGS}}", &hreflang_tags);
+                html
+            } else if is_landing {
+                let mut html = render_blog_index_vue(&landing_page_store);
+                html = html.replace("{{HREFLANG_TAGS}}", &hreflang_tags);
+                html
+            } else if is_post {
+                let mut metadata = metadata.clone();
+                metadata.insert("content".to_string(), item.rendered.clone());
+                let content_item = ContentItem {
+                    path: None,
+                    content: String::new(),
+                    metadata,
+                    rendered_content: Some(item.rendered.clone()),
+                    related_items: vec![],
+                    image_references: vec![],
+                    language: Some(lang.code.clone()),
+                    translations,
+                    is_fallback: item.is_fallback,
+                };
+                let template_content =
+                    get_builtin_template("blog/post").unwrap_or_default();
+                render_with_template(&content_item, "blog/post", template_content)
+            } else {
+                let content_item = ContentItem {
+                    path: None,
+                    content: String::new(),
+                    metadata: metadata.clone(),
+                    rendered_content: Some(item.rendered.clone()),
+                    related_items: vec![],
+                    image_references: vec![],
+                    language: Some(lang.code.clone()),
+                    translations,
+                    is_fallback: item.is_fallback,
+                };
+                let template_content =
+                    get_builtin_template("blog/index").unwrap_or_default();
+                render_with_template(&content_item, "blog/index", template_content)
+            };
+
+            if html.len() < 500 {
+                eprintln!(
+                    "WARNING: Generated file '{}' is very small ({} bytes). Possible template issue.",
+                    item.output_path.display(),
+                    html.len()
+                );
+            }
+
+            fs::write(&item.output_path, &html)?;
+            println!("Generated: {}", &item.output_path.display());
+        }
+
+        if is_slideshow {
+            if is_i18n_landing(&all_items) || all_items.iter().any(|item| item.rel_path_str() == "presentation") {
+                let index_html = format!(
+                    r#"<!DOCTYPE html>
+<html lang="{}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{}</title>
+    <meta http-equiv="refresh" content="0; url='/{}/presentation.html'">
+</head>
+<body>
+    <p>Redirecting to <a href="/{}/presentation.html">{}</a>...</p>
+</body>
+</html>"#,
+                    lang.code, book_title, lang.code, lang.code, lang.name
+                );
+                fs::write(lang_output.join("index.html"), index_html)?;
+                println!("Generated: {}/index.html", lang_output.display());
+            }
+        } else if is_i18n_landing(&all_items) {
+            let index_html = format!(
+                r#"<!DOCTYPE html>
+<html lang="{}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{}</title>
+    <meta http-equiv="refresh" content="0; url='/{}/landing.html'">
+</head>
+<body>
+    <p>Redirecting to <a href="/{}/landing.html">{}</a>...</p>
+</body>
+</html>"#,
+                lang.code, book_title, lang.code, lang.code, lang.name
+            );
+            fs::write(lang_output.join("index.html"), index_html)?;
+            println!("Generated: {}/index.html", lang_output.display());
+        }
+    }
+
+    let root_index = if is_slideshow {
+        format!(
+            r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{}</title>
+</head>
+<body>
+    <h1>{}</h1>
+    <p>Select your language:</p>
+    <ul>
+        {}
+    </ul>
+</body>
+</html>"#,
+            book_title,
+            book_title,
+            languages
+                .iter()
+                .map(|l| {
+                    format!(
+                        "<li><a href=\"/{}/presentation.html\">{}</a></li>",
+                        l.code, l.name
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n        ")
+        )
+    } else {
+        format!(
+            r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{}</title>
+</head>
+<body>
+    <h1>{}</h1>
+    <p>Select your language:</p>
+    <ul>
+        {}
+    </ul>
+</body>
+</html>"#,
+            book_title,
+            book_title,
+            languages
+                .iter()
+                .map(|l| {
+                    format!(
+                        "<li><a href=\"/{}/\">{}</a></li>",
+                        l.code, l.name
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n        ")
+        )
+    };
+    fs::write(output.join("index.html"), root_index)?;
+    println!("Generated: {}/index.html (language selector)", output.display());
+
+    println!("i18n Build completed successfully.");
+    Ok(())
+}
+
+fn generate_hreflang_tags(languages: &[Language]) -> String {
+    languages
+        .iter()
+        .map(|lang| {
+            format!(
+                r#"<link rel="alternate" hreflang="{}" href="/{}">"#,
+                lang.code, lang.code
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n    ")
+}
+
+fn is_i18n_landing(items: &[SiteItem]) -> bool {
+    items.iter().any(|item| item.rel_path_str() == "landing")
 }
 
 /// Guess a Content-Type header value from a file extension.

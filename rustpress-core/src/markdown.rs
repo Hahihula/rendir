@@ -231,6 +231,9 @@ pub fn parse_markdown_with_path(
         rendered_content: Some(html_output),
         related_items: Vec::new(),
         image_references,
+        language: None,
+        translations: Vec::new(),
+        is_fallback: false,
     }
 }
 

@@ -1,0 +1,89 @@
+<script id="language-selector-component" type="text/javascript">
+// Language Selector Component - shows language links if multiple languages exist
+// Hidden automatically if only one language is present
+
+class LanguageSelector {
+    constructor(containerId, languages, currentLang) {
+        this.container = document.getElementById(containerId);
+        this.languages = languages || [];
+        this.currentLang = currentLang || 'en';
+        this.init();
+    }
+
+    init() {
+        if (!this.container) return;
+        
+        // Hide if only one or no language
+        if (this.languages.length <= 1) {
+            this.container.style.display = 'none';
+            return;
+        }
+
+        this.render();
+    }
+
+    getCurrentLanguage() {
+        return this.languages.find(l => l.code === this.currentLang) || {
+            code: this.currentLang,
+            name: this.currentLang.toUpperCase()
+        };
+    }
+
+    render() {
+        const current = this.getCurrentLanguage();
+        const others = this.languages.filter(l => l.code !== this.currentLang);
+
+        this.container.innerHTML = `
+            <div class="lang-selector">
+                <button class="lang-current" aria-haspopup="true" aria-expanded="false">
+                    <span class="lang-label">${current.name || current.code}</span>
+                    <span class="lang-arrow">▼</span>
+                </button>
+                <ul class="lang-dropdown">
+                    ${others.map(l => `
+                        <li>
+                            <a href="${l.url || '/' + l.code}" class="${!l.exists ? 'lang-fallback' : ''}">
+                                ${l.name || l.code}
+                                ${!l.exists ? '<span class="lang-badge">fallback</span>' : ''}
+                            </a>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+
+        this.attachListeners();
+    }
+
+    attachListeners() {
+        const btn = this.container.querySelector('.lang-current');
+        const dropdown = this.container.querySelector('.lang-dropdown');
+
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = dropdown.classList.contains('open');
+                dropdown.classList.toggle('open');
+                btn.setAttribute('aria-expanded', !isOpen);
+            });
+        }
+
+        // Close on outside click
+        document.addEventListener('click', () => {
+            dropdown.classList.remove('open');
+            btn?.setAttribute('aria-expanded', 'false');
+        });
+    }
+}
+
+// Auto-initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('language-selector');
+    if (container && window.__RUSTPRESS_LANGUAGES__) {
+        const currentLang = container.dataset.currentLang || 'en';
+        window.__langSelector = new LanguageSelector('language-selector', window.__RUSTPRESS_LANGUAGES__, currentLang);
+    }
+});
+
+window.LanguageSelector = LanguageSelector;
+</script>

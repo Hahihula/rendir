@@ -22,6 +22,15 @@ Demonstrates reveal.js-style presentation creation.
 
 **Content**: `examples/slideshow/content/presentation.md`
 
+### 3. Internationalization (`i18n/`)
+Demonstrates multi-language site support with automatic fallback.
+- Languages detected from directory structure (`en/`, `de/`, `cs/`, `zh/`)
+- Automatic fallback to default language when translation is missing
+- Language selector component
+- SEO-friendly hreflang meta tags
+
+**Content**: `examples/i18n/content/` (English, German, Czech, Chinese)
+
 ## What's Next (Planned Examples)
 
 The following examples will be added as their features are implemented:

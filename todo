@@ -11,13 +11,12 @@
   	c) github action for github
   	d) gitlab ci template
     e) mirror to github
-  * migrate from terra to different more suitable templating system without breaking anything
-  	( the results should be same before and after migration, but the code would be much cleaner )
   * test on some public mdbooks
   * add support for multilanguage sites
   * blog and cookbook should have rss feature
   * rss should have absolute paths
   * teplates should be either 1) relative/absolute local path 2) name of template from official (my) repository (curently non existing) 3) url to teplate repository
+  * test zola compatibility
 
 
 ### Nice to have:
