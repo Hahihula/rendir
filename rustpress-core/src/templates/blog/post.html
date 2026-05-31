@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        article {
+            background: #fff;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .post-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .post-header h1 {
+            font-size: 2rem;
+            color: #1a1a2e;
+            margin-bottom: 15px;
+        }
+
+        .post-meta {
+            font-size: 0.9rem;
+            color: #888;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .post-meta .author {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .post-tags {
+            margin-top: 15px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: #e3f2fd;
+            color: #1976D2;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+
+        .post-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #333;
+        }
+
+        .post-content h1 { font-size: 2rem; margin: 2rem 0 1rem; color: #1a1a2e; }
+        .post-content h2 { font-size: 1.6rem; margin: 1.8rem 0 0.8rem; color: #333; }
+        .post-content h3 { font-size: 1.3rem; margin: 1.5rem 0 0.6rem; color: #444; }
+        .post-content p { margin: 1rem 0; }
+        .post-content ul, .post-content ol { margin: 1rem 0; padding-left: 2rem; }
+        .post-content li { margin: 0.5rem 0; }
+        .post-content pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        .post-content code {
+            background: #f4f4f4;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: "Fira Code", "Consolas", monospace;
+            font-size: 0.9rem;
+        }
+        .post-content pre code { background: none; padding: 0; }
+        .post-content blockquote {
+            border-left: 4px solid #2196F3;
+            margin: 1rem 0;
+            padding: 0.5rem 1rem;
+            background: #f9f9f9;
+            color: #555;
+        }
+        .post-content a { color: #2196F3; text-decoration: none; }
+        .post-content a:hover { text-decoration: underline; }
+        .post-content img { max-width: 100%; border-radius: 4px; margin: 1rem 0; }
+
+        .post-footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .prev-next {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .prev-next a {
+            color: #2196F3;
+            text-decoration: none;
+            padding: 10px 15px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            flex: 1;
+            text-align: center;
+        }
+
+        .prev-next a:hover {
+            background: #e3f2fd;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .back-link a {
+            color: #666;
+            text-decoration: none;
+        }
+
+        .back-link a:hover {
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <article>
+            <header class="post-header">
+                <h1>{{ title }}</h1>
+                <div class="post-meta">
+                    {{ author }}
+                    {{ date }}
+                    {{ category }}
+                </div>
+                <div class="post-tags">
+                    {{ tags }}
+                </div>
+            </header>
+
+            <div class="post-content">
+                {{ content }}
+            </div>
+
+            <footer class="post-footer">
+                <div class="prev-next">
+                    {{ prev_post }}
+                    {{ next_post }}
+                </div>
+                <div class="back-link">
+                    <a href="/">← Back to Blog</a>
+                </div>
+            </footer>
+        </article>
+    </div>
+</body>
+</html>

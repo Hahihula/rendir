@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title v-bind:title="title">{{ title }}</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #0f0f1a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        .slideshow {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: #0f0f1a;
+        }
+
+        .slide {
+            display: none;
+            width: 100%;
+            height: 100%;
+            padding: 60px 80px;
+            background: #1a1a2e;
+            position: absolute;
+            top: 0;
+            left: 0;
+            box-sizing: border-box;
+        }
+
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Slide Layout Components */
+        .slide-full {
+            justify-content: center;
+            align-items: center;
+        }
+        .slide-full .slide-content {
+            max-width: 1200px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .slide-split-left {
+            flex-direction: row;
+        }
+        .slide-split-left .slide-content-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .slide-split-left .slide-content-aside {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-left: 40px;
+        }
+
+        .slide-split-right {
+            flex-direction: row;
+        }
+        .slide-split-right .slide-content-aside {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-right: 40px;
+        }
+        .slide-split-right .slide-content-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .slide-center {
+            justify-content: center;
+            align-items: center;
+        }
+        .slide-center .slide-content {
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .slide-list .slide-content {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .slide-list ul, .slide-list ol {
+            text-align: left;
+        }
+
+        .slide-image-bg {
+            background-size: cover;
+            background-position: center;
+            justify-content: flex-end;
+        }
+        .slide-image-bg .slide-content {
+            background: rgba(0,0,0,0.7);
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 800px;
+        }
+
+        /* Common slide content styles */
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            font-size: 2rem;
+            line-height: 1.6;
+            overflow: auto;
+        }
+
+        .slide-content h1 { font-size: 3rem; margin-bottom: 1rem; color: #fff; }
+        .slide-content h2 { font-size: 2.2rem; margin-bottom: 0.8rem; color: #fff; }
+        .slide-content h3 { font-size: 1.8rem; margin-bottom: 0.6rem; color: #ddd; }
+        .slide-content p { margin-bottom: 1rem; color: #ccc; }
+        .slide-content ul, .slide-content ol { margin-left: 2rem; margin-bottom: 1rem; color: #ccc; }
+        .slide-content li { margin-bottom: 0.5rem; color: #ccc; }
+        .slide-content pre {
+            background: #0f0f1a;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 1.2rem;
+            border: 1px solid #333;
+        }
+        .slide-content code {
+            background: #0f0f1a;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: "Fira Code", monospace;
+            color: #e0e0e0;
+        }
+        .slide-content pre code {
+            background: none;
+            padding: 0;
+            color: #e0e0e0;
+        }
+        .slide-content img {
+            max-width: 100%;
+            max-height: 60vh;
+            border-radius: 8px;
+        }
+
+        .slide-controls-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 15px 20px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .slide-nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .slide-nav button {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 2px solid #888;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            transition: all 0.2s;
+        }
+
+        .slide-nav button.active {
+            background: #2196F3;
+            border-color: #2196F3;
+        }
+
+        .slide-nav button:hover {
+            border-color: #fff;
+        }
+
+        .slide-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .slide-controls button {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide-controls button:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.6);
+        }
+
+        .slide-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #2196F3, #21F3CE);
+            transition: width 0.3s ease;
+            z-index: 100;
+        }
+
+        .slide-title-display {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 1rem;
+            opacity: 0.8;
+            z-index: 100;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        }
+
+        .slide-counter {
+            position: fixed;
+            top: 20px;
+            right: 80px;
+            color: #888;
+            font-size: 0.9rem;
+            z-index: 100;
+        }
+
+        .presenter-link {
+            position: fixed;
+            top: 15px;
+            right: 20px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.8rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            z-index: 100;
+            transition: all 0.2s;
+        }
+
+        .presenter-link:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.6);
+        }
+
+        .slide.active .slide-content > * {
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Embedded store data -->
+    <script id="store-data" type="application/json">{{STORE_DATA}}</script>
+
+    <div id="app" class="slideshow">
+        <div class="slide-progress" v-bind:style="{ width: progressPercent + '%' }"></div>
+        <div class="slide-title-display">{{ currentSlide.title }}</div>
+        <div class="slide-counter">{{ currentSlideIndex + 1 }} / {{ slides.length }}</div>
+        <a href="presenter.html" class="presenter-link" target="_blank">Present</a>
+
+        <!-- Slides -->
+        <div
+            v-for="(slide, index) in slides"
+            v-bind:key="slide.id"
+            v-bind:class="['slide', 'slide-' + slide.type, { active: index === currentSlideIndex }]"
+        >
+            <div class="slide-content" v-html="slide.content"></div>
+        </div>
+
+        <div class="slide-controls-bar">
+            <div class="slide-nav">
+                <button
+                    v-for="(slide, index) in slides"
+                    v-bind:key="'nav-' + slide.id"
+                    v-bind:class="{ active: index === currentSlideIndex }"
+                    v-on:click="goToSlide(index)"
+                ></button>
+            </div>
+            <div class="slide-controls">
+                <button v-on:click="prevSlide" title="Previous (Left Arrow)">&#9664;</button>
+                <button v-on:click="nextSlide" title="Next (Right Arrow)">&#9654;</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        // Slide layout Vue components
+        const SlideFull = {
+            props: ['slide'],
+            template: `
+                <div class="slide-content" v-html="slide.content"></div>
+            `
+        };
+
+        const SlideSplitLeft = {
+            props: ['slide'],
+            template: `
+                <div class="slide-content-main" v-html="slide.content"></div>
+                <div class="slide-content-aside" v-if="slide.images && slide.images.length">
+                    <img v-bind:src="slide.images[0]" alt="" />
+                </div>
+            `
+        };
+
+        const SlideSplitRight = {
+            props: ['slide'],
+            template: `
+                <div class="slide-content-aside" v-if="slide.images && slide.images.length">
+                    <img v-bind:src="slide.images[0]" alt="" />
+                </div>
+                <div class="slide-content-main" v-html="slide.content"></div>
+            `
+        };
+
+        const SlideCenter = {
+            props: ['slide'],
+            template: `
+                <div class="slide-content" v-html="slide.content"></div>
+            `
+        };
+
+        const SlideList = {
+            props: ['slide'],
+            template: `
+                <div class="slide-content" v-html="slide.content"></div>
+            `
+        };
+
+        const SlideImageBg = {
+            props: ['slide'],
+            template: `
+                <div class="slide-content" v-html="slide.content"></div>
+            `
+        };
+
+        const app = createApp({
+            setup() {
+                // Load store data
+                const storeData = JSON.parse(
+                    document.getElementById('store-data').textContent
+                );
+
+                const currentSlideIndex = ref(storeData.current_slide_index || 0);
+                const slides = ref(storeData.slides || []);
+                const title = ref(storeData.title || 'Slideshow');
+                const images = ref(storeData.images || {});
+
+                const currentSlide = computed(() => {
+                    return slides.value[currentSlideIndex.value] || { title: '', content: '' };
+                });
+
+                const progressPercent = computed(() => {
+                    if (slides.value.length === 0) return 0;
+                    return ((currentSlideIndex.value + 1) / slides.value.length) * 100;
+                });
+
+                function nextSlide() {
+                    if (slides.value.length === 0) return;
+                    currentSlideIndex.value = (currentSlideIndex.value + 1) % slides.value.length;
+                }
+
+                function prevSlide() {
+                    if (slides.value.length === 0) return;
+                    currentSlideIndex.value = (currentSlideIndex.value - 1 + slides.value.length) % slides.value.length;
+                }
+
+                function goToSlide(index) {
+                    currentSlideIndex.value = index;
+                }
+
+                // Keyboard navigation
+                function handleKeydown(e) {
+                    if (e.key === 'ArrowRight' || e.key === ' ') {
+                        e.preventDefault();
+                        nextSlide();
+                    }
+                    if (e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        prevSlide();
+                    }
+                    if (e.key === 'Home') {
+                        e.preventDefault();
+                        goToSlide(0);
+                    }
+                    if (e.key === 'End') {
+                        e.preventDefault();
+                        goToSlide(slides.value.length - 1);
+                    }
+                }
+
+                // Touch navigation
+                let touchStartX = 0;
+                function handleTouchStart(e) {
+                    touchStartX = e.touches[0].clientX;
+                }
+                function handleTouchEnd(e) {
+                    const diff = touchStartX - e.changedTouches[0].clientX;
+                    if (Math.abs(diff) > 50) {
+                        if (diff > 0) nextSlide();
+                        else prevSlide();
+                    }
+                }
+
+                // Listen for presenter sync
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const channel = new BroadcastChannel('rustpress-slides');
+                    channel.onmessage = (e) => {
+                        if (e.data && e.data.type === 'slide') {
+                            goToSlide(e.data.index);
+                        }
+                    };
+                }
+
+                // Register keyboard and touch listeners
+                document.addEventListener('keydown', handleKeydown);
+                document.addEventListener('touchstart', handleTouchStart);
+                document.addEventListener('touchend', handleTouchEnd);
+
+                return {
+                    title,
+                    slides,
+                    currentSlideIndex,
+                    currentSlide,
+                    progressPercent,
+                    nextSlide,
+                    prevSlide,
+                    goToSlide
+                };
+            },
+            components: {
+                'slide-full': SlideFull,
+                'slide-split-left': SlideSplitLeft,
+                'slide-split-right': SlideSplitRight,
+                'slide-center': SlideCenter,
+                'slide-list': SlideList,
+                'slide-image-bg': SlideImageBg
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+</html>

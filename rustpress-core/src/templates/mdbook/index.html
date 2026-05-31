@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title v-html="store.title"></title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .book-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #fff;
+            border-right: 1px solid #ddd;
+            padding: 20px;
+            overflow-y: auto;
+            position: fixed;
+            height: 100vh;
+            top: 0;
+            left: 0;
+        }
+
+        .sidebar h1 {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #2196F3;
+            color: #1a1a2e;
+        }
+
+        .search-box {
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: #2196F3;
+        }
+
+        .chapter-list {
+            list-style: none;
+        }
+
+        .chapter-list li {
+            margin-bottom: 8px;
+        }
+
+        .chapter-list a {
+            color: #666;
+            text-decoration: none;
+            font-size: 0.95rem;
+            display: block;
+            padding: 6px 10px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .chapter-list a:hover {
+            background: #f0f0f0;
+            color: #2196F3;
+        }
+
+        .chapter-list a.active {
+            background: #e3f2fd;
+            color: #1976D2;
+            font-weight: 500;
+        }
+
+        .chapter-list .section {
+            padding-left: 20px;
+            font-size: 0.9rem;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 40px 60px;
+            max-width: 900px;
+        }
+
+        .chapter-header {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .chapter-header h1 {
+            font-size: 2rem;
+            color: #1a1a2e;
+        }
+
+        .chapter-header .prev-next {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
+        .chapter-header .prev-next a {
+            color: #2196F3;
+            text-decoration: none;
+        }
+
+        .chapter-header .prev-next a:hover {
+            text-decoration: underline;
+        }
+
+        .markdown-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+        }
+
+        .markdown-content h1 { font-size: 2rem; margin: 2rem 0 1rem; color: #1a1a2e; }
+        .markdown-content h2 { font-size: 1.6rem; margin: 1.8rem 0 0.8rem; color: #333; }
+        .markdown-content h3 { font-size: 1.3rem; margin: 1.5rem 0 0.6rem; color: #444; }
+        .markdown-content p { margin: 1rem 0; }
+        .markdown-content ul, .markdown-content ol { margin: 1rem 0; padding-left: 2rem; }
+        .markdown-content li { margin: 0.5rem 0; }
+        .markdown-content pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        .markdown-content code {
+            background: #f4f4f4;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: "Fira Code", "Consolas", monospace;
+            font-size: 0.9rem;
+        }
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+        }
+        .markdown-content blockquote {
+            border-left: 4px solid #2196F3;
+            margin: 1rem 0;
+            padding: 0.5rem 1rem;
+            background: #f9f9f9;
+            color: #555;
+        }
+        .markdown-content table {
+            border-collapse: collapse;
+            margin: 1rem 0;
+            width: 100%;
+        }
+        .markdown-content th, .markdown-content td {
+            border: 1px solid #ddd;
+            padding: 10px 15px;
+            text-align: left;
+        }
+        .markdown-content th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+        .markdown-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        .admonition {
+            margin: 1.5rem 0;
+            padding: 15px 20px;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        .admonition.info { background: #e3f2fd; border-color: #2196F3; }
+        .admonition.warning { background: #fff3e0; border-color: #ff9800; }
+        .admonition.danger { background: #ffebee; border-color: #f44336; }
+
+        /* Search results panel */
+        .search-results-panel {
+            padding: 40px 0;
+        }
+        .search-results-panel h2 {
+            font-size: 1.5rem;
+            color: #1a1a2e;
+            margin-bottom: 20px;
+        }
+        .search-no-results {
+            color: #888;
+            font-size: 1.1rem;
+            padding: 20px 0;
+        }
+        .search-result-item {
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .search-result-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .search-result-title {
+            font-weight: 600;
+            color: #1976D2;
+            font-size: 1.1rem;
+            margin-bottom: 6px;
+        }
+        .search-result-snippet {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-content { margin-left: 0; padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <script id="store-data" type="application/json">{{STORE_DATA}}</script>
+
+    <div id="app" class="book-container">
+        <nav class="sidebar">
+            <h1>{{ store.title }}</h1>
+            <div class="search-box">
+                <input
+                    type="text"
+                    v-model="searchQuery"
+                    placeholder="Search..."
+                    autocomplete="off"
+                >
+            </div>
+            <ul class="chapter-list">
+                    <template v-for="chapter in filteredChapters" :key="chapter.url">
+                        <li>
+                            <a
+                                :href="chapter.url"
+                                :class="{ active: chapter.url === store.current_chapter.url }"
+                            >
+                                {{ chapter.title }}
+                            </a>
+                        </li>
+                        <template v-for="child in chapter.children" :key="child.url">
+                            <li class="section">
+                                <a
+                                    :href="child.url"
+                                    :class="{ active: child.url === store.current_chapter.url }"
+                                >
+                                    {{ child.title }}
+                                </a>
+                            </li>
+                        </template>
+                    </template>
+            </ul>
+        </nav>
+
+        <main class="main-content">
+            <!-- Search results overlay (shown when search is active) -->
+            <template v-if="searchResults !== null">
+                <div class="search-results-panel">
+                    <h2>Search Results</h2>
+                    <div v-if="searchResults.length === 0" class="search-no-results">
+                        No results found for "{{ searchQuery }}"
+                    </div>
+                    <div v-for="result in searchResults" :key="result.id" class="search-result-item" @click="goToChapter(result.url)">
+                        <div class="search-result-title">{{ result.title }}</div>
+                        <div class="search-result-snippet" v-html="result.snippet"></div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Normal chapter content (hidden during search) -->
+            <template v-if="searchResults === null">
+                <header class="chapter-header">
+                    <h1>{{ store.current_chapter.title }}</h1>
+                    <div class="prev-next">
+                        <a
+                            v-if="store.current_chapter.prev_chapter"
+                            :href="store.current_chapter.prev_chapter.url"
+                        >
+                            ← {{ store.current_chapter.prev_chapter.title }}
+                        </a>
+                        <span v-else></span>
+                        <a
+                            v-if="store.current_chapter.next_chapter"
+                            :href="store.current_chapter.next_chapter.url"
+                        >
+                            {{ store.current_chapter.next_chapter.title }} →
+                        </a>
+                    </div>
+                </header>
+
+                <article class="markdown-content" v-html="store.current_chapter.content">
+                </article>
+            </template>
+        </main>
+    </div>
+
+    {{SEARCH_COMPONENT_SCRIPT}}
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        const app = createApp({
+            setup() {
+                const store = JSON.parse(
+                    document.getElementById('store-data').textContent
+                );
+
+                const searchQuery = ref('');
+
+                // Build client search index from the Rust-built data
+                let searchEngine = null;
+                try {
+                    if (store.search_index) {
+                        const indexData = JSON.parse(store.search_index);
+                        searchEngine = new ClientSearchIndex(indexData);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse search index:', e);
+                }
+
+                const searchResults = computed(() => {
+                    if (!searchQuery.value || searchQuery.value.length < 2 || !searchEngine) {
+                        return null;
+                    }
+                    return searchEngine.search(searchQuery.value, 20);
+                });
+
+                // Filter TOC by chapter title (secondary, shown when no search)
+                const filteredChapters = computed(() => {
+                    if (!searchQuery.value || !searchEngine) return store.chapters;
+
+                    // Only filter TOC if we have search results that match
+                    const results = searchEngine.search(searchQuery.value, 100);
+                    if (!results || results.length === 0) return [];
+
+                    const matchedUrls = new Set(results.map(r => r.url));
+                    return store.chapters.filter(ch =>
+                        matchedUrls.has(ch.url) ||
+                        (ch.children && ch.children.some(c => matchedUrls.has(c.url)))
+                    );
+                });
+
+                return {
+                    store,
+                    searchQuery,
+                    searchResults,
+                    filteredChapters,
+                    goToChapter
+                };
+            }
+        });
+
+        function goToChapter(url) {
+            window.location.href = url;
+        }
+
+        app.mount('#app');
+    </script>
+</body>
+</html>
