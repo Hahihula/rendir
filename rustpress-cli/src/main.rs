@@ -13,7 +13,7 @@ use rustpress_core::{
     types::{BlogIndexStore, BlogPostSummary, ChapterNav, ChapterStore, ContentItem, Language, TagCount},
 };
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
@@ -21,6 +21,27 @@ use std::sync::Arc;
 use std::time::Duration;
 use tiny_http::{Header, Response, Server};
 use walkdir::WalkDir;
+
+fn download_remote_asset(url: &str, dest: &Path) -> Result<()> {
+    let response = reqwest::blocking::get(url)?;
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut file = File::create(dest)?;
+    let mut content = Cursor::new(response.bytes()?);
+    std::io::copy(&mut content, &mut file)?;
+    Ok(())
+}
+
+fn get_remote_filename(url: &str) -> String {
+    url.split('/')
+        .last()
+        .unwrap_or("asset")
+        .split('?')
+        .next()
+        .unwrap_or("asset")
+        .to_string()
+}
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -87,6 +108,7 @@ struct SiteItem {
     metadata: std::collections::HashMap<String, String>,
     is_fallback: bool,
     asset_references: Vec<PathBuf>,
+    remote_references: Vec<String>,
 }
 
 impl SiteItem {
@@ -97,6 +119,7 @@ impl SiteItem {
         rendered: String,
         metadata: std::collections::HashMap<String, String>,
         asset_references: Vec<PathBuf>,
+        remote_references: Vec<String>,
     ) -> Self {
         Self {
             rel_path,
@@ -106,6 +129,7 @@ impl SiteItem {
             metadata,
             is_fallback: false,
             asset_references,
+            remote_references,
         }
     }
 
@@ -176,6 +200,7 @@ fn scan_markdown_dir(
                 item.rendered_content.unwrap_or_default(),
                 item.metadata,
                 asset_references,
+                item.remote_references,
             ));
         }
     }
@@ -615,6 +640,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                             rendered_content: Some(item.rendered.clone()),
                             related_items: vec![],
                             image_references: vec![],
+                            remote_references: vec![],
                             language: None,
                             translations: Vec::new(),
                             is_fallback: false,
@@ -655,6 +681,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                            remote_references: vec![],
                     language: None,
                     translations: Vec::new(),
                     is_fallback: false,
@@ -669,6 +696,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                            remote_references: vec![],
                     language: None,
                     translations: Vec::new(),
                     is_fallback: false,
@@ -683,6 +711,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                            remote_references: vec![],
                     language: None,
                     translations: Vec::new(),
                     is_fallback: false,
@@ -698,6 +727,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                 rendered_content: Some(item.rendered.clone()),
                 related_items: vec![],
                 image_references: vec![],
+                            remote_references: vec![],
                 language: None,
                 translations: Vec::new(),
                 is_fallback: false,
@@ -738,6 +768,17 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                         fs::copy(asset_path, &dest).map_err(|e| {
                             eprintln!("Warning: Failed to copy asset '{}': {}", asset_path.display(), e);
                         }).ok();
+                    }
+                }
+            }
+
+            for remote_url in &item.remote_references {
+                let filename = get_remote_filename(remote_url);
+                let dest = parent.join("remote_assets").join(&filename);
+                if !dest.exists() {
+                    match download_remote_asset(remote_url, &dest) {
+                        Ok(_) => println!("Downloaded remote asset: {}", remote_url),
+                        Err(e) => eprintln!("Warning: Failed to download '{}': {}", remote_url, e),
                     }
                 }
             }
@@ -950,6 +991,7 @@ fn run_build_i18n(
                             metadata,
                             is_fallback: true,
                             asset_references: item.asset_references,
+                            remote_references: item.remote_references,
                         });
                     }
                 }
@@ -1062,6 +1104,7 @@ fn run_build_i18n(
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                            remote_references: vec![],
                     language: Some(lang.code.clone()),
                     translations,
                     is_fallback: item.is_fallback,
@@ -1083,6 +1126,7 @@ fn run_build_i18n(
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                            remote_references: vec![],
                     language: Some(lang.code.clone()),
                     translations,
                     is_fallback: item.is_fallback,
@@ -1098,6 +1142,7 @@ fn run_build_i18n(
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                            remote_references: vec![],
                     language: Some(lang.code.clone()),
                     translations,
                     is_fallback: item.is_fallback,
@@ -1564,6 +1609,16 @@ fn main() -> Result<()> {
                             if img_path.exists() {
                                 let dest = parent.join(img_path.file_name().unwrap_or_default());
                                 fs::copy(img_path, dest)?;
+                            }
+                        }
+                        for remote_url in &item.remote_references {
+                            let filename = get_remote_filename(remote_url);
+                            let dest = parent.join("remote_assets").join(&filename);
+                            if !dest.exists() {
+                                match download_remote_asset(remote_url, &dest) {
+                                    Ok(_) => println!("Downloaded remote asset: {}", remote_url),
+                                    Err(e) => eprintln!("Warning: Failed to download '{}': {}", remote_url, e),
+                                }
                             }
                         }
                     }

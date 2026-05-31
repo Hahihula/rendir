@@ -542,3 +542,77 @@ title: "Chapter 1"
         .join("diagram.png")
         .exists());
 }
+
+#[test]
+fn test_build_creates_remote_assets_directory() {
+    let temp_dir = TempDir::new().unwrap();
+    let content_dir = temp_dir.path().join("content");
+    let output_dir = temp_dir.path().join("output");
+    fs::create_dir(&content_dir).unwrap();
+
+    fs::write(
+        content_dir.join("index.md"),
+        r#"---
+title: "Test Page"
+---
+
+# Test
+
+![Remote Image](https://example.com/image.png)
+"#,
+    )
+    .unwrap();
+
+    Command::cargo_bin("rustpress-cli")
+        .unwrap()
+        .arg("build")
+        .arg("--input")
+        .arg(&content_dir)
+        .arg("--output")
+        .arg(&output_dir)
+        .assert()
+        .success();
+
+    assert!(output_dir.join("index.html").exists());
+}
+
+#[test]
+fn test_parse_markdown_extracts_remote_references() {
+    use rustpress_core::markdown::parse_markdown_with_path;
+    use std::path::PathBuf;
+
+    let content = r#"---
+title: Test
+---
+
+# Hello
+
+![Remote Logo](https://example.com/logo.png)
+
+Some text.
+"#;
+    let item = parse_markdown_with_path(content, None, Some(PathBuf::from("/project/page.md")));
+    assert!(!item.remote_references.is_empty());
+    assert!(item
+        .remote_references
+        .contains(&"https://example.com/logo.png".to_string()));
+}
+
+#[test]
+fn test_parse_markdown_separates_local_and_remote() {
+    use rustpress_core::markdown::parse_markdown_with_path;
+    use std::path::PathBuf;
+
+    let content = r#"---
+title: Test
+---
+
+# Hello
+
+![Remote](https://example.com/remote.png)
+![Local](images/local.png)
+"#;
+    let item = parse_markdown_with_path(content, None, Some(PathBuf::from("/project/page.md")));
+    assert!(!item.remote_references.is_empty());
+    assert!(item.image_references.len() >= 1);
+}

@@ -224,6 +224,9 @@ pub fn parse_markdown_with_path(
         Vec::new()
     };
 
+    // Extract remote image references
+    let remote_references = extract_remote_image_references(content);
+
     ContentItem {
         path,
         content: content.to_string(),
@@ -231,6 +234,7 @@ pub fn parse_markdown_with_path(
         rendered_content: Some(html_output),
         related_items: Vec::new(),
         image_references: local_references,
+        remote_references,
         language: None,
         translations: Vec::new(),
         is_fallback: false,
@@ -302,6 +306,22 @@ fn is_local_path(path: &str) -> bool {
         && !path.starts_with("//")
         && !path.starts_with("mailto:")
         && !path.starts_with("tel:")
+}
+
+/// Check if a path is a remote URL (http/https)
+fn is_remote_url(path: &str) -> bool {
+    path.starts_with("http://") || path.starts_with("https://")
+}
+
+/// Extract all remote image references from markdown content
+/// Returns a list of remote image URLs
+pub fn extract_remote_image_references(content: &str) -> Vec<String> {
+    let image_regex = Regex::new(r"!\[([^\]]*)\]\(([^)]+)\)").unwrap();
+    image_regex
+        .captures_iter(content)
+        .map(|cap| cap[2].to_string())
+        .filter(|path| is_remote_url(path))
+        .collect()
 }
 
 /// Get the directory containing a file path (for relative path resolution)
