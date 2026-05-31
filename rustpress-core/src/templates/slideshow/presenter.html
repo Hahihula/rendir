@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presenter View - {{ title }}</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .presenter-header {
+            padding: 20px;
+            background: #16213e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .presenter-header h1 { font-size: 1.5rem; }
+        .presenter-header .timer {
+            font-size: 2rem;
+            font-family: monospace;
+            cursor: pointer;
+        }
+        .presenter-header .room-code {
+            background: #0f3460;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 1.2rem;
+        }
+        .presenter-header .room-code span { opacity: 0.6; font-size: 0.8rem; }
+        .presenter-header .sync-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .presenter-header .sync-toggle input { width: 18px; height: 18px; }
+
+        .presenter-main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .current-slide {
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .current-slide .slide-content {
+            font-size: 1.5rem;
+            text-align: center;
+            max-width: 100%;
+            overflow: auto;
+        }
+
+        .slide-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 0.9rem;
+            opacity: 0.6;
+        }
+
+        .next-slide-preview {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .next-slide-preview h3 { margin-bottom: 15px; font-size: 1rem; opacity: 0.7; }
+
+        .next-slide-preview .slide-content {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 4px;
+            font-size: 1rem;
+            min-height: 100px;
+        }
+
+        .notes-section {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .notes-section h3 { margin-bottom: 15px; font-size: 1rem; opacity: 0.7; }
+        .notes-section textarea {
+            width: 100%;
+            height: 200px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #fff;
+            padding: 15px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: none;
+        }
+
+        .presenter-controls {
+            padding: 20px;
+            background: #16213e;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .presenter-controls button {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            background: #2196F3;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .presenter-controls button:hover { background: #1976D2; }
+        .presenter-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <!-- Embedded store data -->
+    <script id="store-data" type="application/json">{{STORE_DATA}}</script>
+
+    <div id="app" class="presenter-header">
+        <h1>Presenter View</h1>
+        <div class="room-code">
+            <span>Room:</span> <strong>{{ roomCode }}</strong>
+        </div>
+        <div class="sync-toggle">
+            <input type="checkbox" id="syncToggle" v-model="syncEnabled" />
+            <label for="syncToggle">Sync with audience</label>
+        </div>
+        <div class="timer" v-on:click="toggleTimer">{{ timerDisplay }}</div>
+    </div>
+
+    <div class="presenter-main">
+        <div class="current-slide">
+            <div class="slide-content" v-html="currentSlide.content"></div>
+            <div class="slide-info">Slide {{ currentSlideIndex + 1 }} of {{ slides.length }}</div>
+        </div>
+
+        <div class="sidebar">
+            <div class="next-slide-preview">
+                <h3>Next Slide</h3>
+                <div class="slide-content" v-html="nextSlide.content || 'End of presentation'"></div>
+            </div>
+
+            <div class="notes-section">
+                <h3>Speaker Notes</h3>
+                <textarea
+                    id="notes"
+                    v-model="notes"
+                    placeholder="Notes for current slide..."
+                ></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="presenter-controls">
+        <button v-on:click="prevSlide">&#9664; Previous</button>
+        <button v-on:click="nextSlide">Next &#9654;</button>
+    </div>
+
+    <script>
+        const { createApp, ref, computed } = Vue;
+
+        const app = createApp({
+            setup() {
+                // Load store data
+                const storeData = JSON.parse(
+                    document.getElementById('store-data').textContent
+                );
+
+                const slides = ref(storeData.slides || []);
+                const title = ref(storeData.title || 'Slideshow');
+                const currentSlideIndex = ref(0);
+                const notes = ref('');
+                const syncEnabled = ref(true);
+                const timerSeconds = ref(0);
+                let timerInterval = null;
+
+                const currentSlide = computed(() => {
+                    return slides.value[currentSlideIndex.value] || { title: '', content: '' };
+                });
+
+                const nextSlide = computed(() => {
+                    const nextIndex = (currentSlideIndex.value + 1) % slides.value.length;
+                    return slides.value[nextIndex] || { title: '', content: '' };
+                });
+
+                const timerDisplay = computed(() => {
+                    const mins = Math.floor(timerSeconds.value / 60).toString().padStart(2, '0');
+                    const secs = (timerSeconds.value % 60).toString().padStart(2, '0');
+                    return `${mins}:${secs}`;
+                });
+
+                const roomCode = computed(() => {
+                    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                    let code = '';
+                    for (let i = 0; i < 6; i++) {
+                        code += chars[Math.floor(Math.random() * chars.length)];
+                    }
+                    return code;
+                });
+
+                function nextSlide() {
+                    if (slides.value.length === 0) return;
+                    currentSlideIndex.value = (currentSlideIndex.value + 1) % slides.value.length;
+                    broadcastSlideChange();
+                }
+
+                function prevSlide() {
+                    if (slides.value.length === 0) return;
+                    currentSlideIndex.value = (currentSlideIndex.value - 1 + slides.value.length) % slides.value.length;
+                    broadcastSlideChange();
+                }
+
+                function toggleTimer() {
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    } else {
+                        timerInterval = setInterval(() => {
+                            timerSeconds.value++;
+                        }, 1000);
+                    }
+                }
+
+                function broadcastSlideChange() {
+                    if (!syncEnabled.value) return;
+                    if (typeof BroadcastChannel !== 'undefined') {
+                        const channel = new BroadcastChannel('rustpress-slides');
+                        channel.postMessage({ type: 'slide', index: currentSlideIndex.value });
+                    }
+                }
+
+                // Keyboard navigation
+                function handleKeydown(e) {
+                    if (e.key === 'ArrowRight' || e.key === ' ') {
+                        e.preventDefault();
+                        nextSlide();
+                    }
+                    if (e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        prevSlide();
+                    }
+                    if (e.key === 'Escape') {
+                        if (timerInterval) {
+                            clearInterval(timerInterval);
+                            timerInterval = null;
+                        }
+                    }
+                }
+
+                document.addEventListener('keydown', handleKeydown);
+
+                // Start timer automatically
+                toggleTimer();
+
+                return {
+                    slides,
+                    title,
+                    currentSlideIndex,
+                    currentSlide,
+                    nextSlide,
+                    notes,
+                    syncEnabled,
+                    timerDisplay,
+                    roomCode,
+                    nextSlide,
+                    prevSlide,
+                    toggleTimer
+                };
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+</html>

@@ -1,8 +1,9 @@
 use crate::components::{Component, ComponentRegistry};
 use crate::types::ContentItem;
-use pulldown_cmark::{Options, Parser, html};
+use pulldown_cmark::{html, Options, Parser};
 use regex::Regex;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// Process markdown to recognize custom components
 fn process_components(content: &str, registry: &ComponentRegistry) -> String {
@@ -143,8 +144,18 @@ fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
             if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter) {
                 if let Some(map) = yaml_map.as_mapping() {
                     for (key, value) in map {
-                        if let (Some(key_str), Some(value_str)) = (key.as_str(), value.as_str()) {
-                            metadata.insert(key_str.to_string(), value_str.to_string());
+                        if let Some(key_str) = key.as_str() {
+                            let value_str = if let Some(seq) = value.as_sequence() {
+                                seq.iter()
+                                    .filter_map(|v| v.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(",")
+                            } else {
+                                value.as_str().unwrap_or_default().to_string()
+                            };
+                            if !value_str.is_empty() {
+                                metadata.insert(key_str.to_string(), value_str);
+                            }
                         }
                     }
                 }
@@ -159,8 +170,18 @@ fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
             if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter) {
                 if let Some(map) = yaml_map.as_mapping() {
                     for (key, value) in map {
-                        if let (Some(key_str), Some(value_str)) = (key.as_str(), value.as_str()) {
-                            metadata.insert(key_str.to_string(), value_str.to_string());
+                        if let Some(key_str) = key.as_str() {
+                            let value_str = if let Some(seq) = value.as_sequence() {
+                                seq.iter()
+                                    .filter_map(|v| v.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(",")
+                            } else {
+                                value.as_str().unwrap_or_default().to_string()
+                            };
+                            if !value_str.is_empty() {
+                                metadata.insert(key_str.to_string(), value_str);
+                            }
                         }
                     }
                 }
@@ -175,6 +196,15 @@ fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
 
 /// Parse markdown content into a ContentItem with component support
 pub fn parse_markdown(content: &str, registry: Option<&ComponentRegistry>) -> ContentItem {
+    parse_markdown_with_path(content, registry, None)
+}
+
+/// Parse markdown content into a ContentItem with component support and source path
+pub fn parse_markdown_with_path(
+    content: &str,
+    registry: Option<&ComponentRegistry>,
+    path: Option<PathBuf>,
+) -> ContentItem {
     // Extract frontmatter
     let (metadata, content_without_frontmatter) = extract_frontmatter(content);
 
@@ -188,12 +218,30 @@ pub fn parse_markdown(content: &str, registry: Option<&ComponentRegistry>) -> Co
     // Convert markdown to HTML
     let html_output = parse_markdown_fragment(&processed_content);
 
+    // Extract image references if path is provided
+    let image_references = if let Some(ref p) = path {
+        let source_dir = get_source_dir(p);
+        extract_image_references(content)
+            .into_iter()
+            .map(|rel_path| {
+                if let Some(ref dir) = source_dir {
+                    resolve_image_path(&rel_path, dir)
+                } else {
+                    PathBuf::from(rel_path)
+                }
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     ContentItem {
-        path: None,
+        path,
         content: content.to_string(),
         metadata,
         rendered_content: Some(html_output),
         related_items: Vec::new(),
+        image_references,
     }
 }
 
@@ -214,4 +262,28 @@ pub fn parse_markdown_fragment(content: &str) -> String {
     html::push_html(&mut html_output, parser);
 
     html_output
+}
+
+/// Extract all image references from markdown content
+/// Returns a list of image source paths (the part inside `![alt](path)`)
+pub fn extract_image_references(content: &str) -> Vec<String> {
+    let image_regex = Regex::new(r"!\[([^\]]*)\]\(([^)]+)\)").unwrap();
+    image_regex
+        .captures_iter(content)
+        .map(|cap| cap[2].to_string())
+        .collect()
+}
+
+/// Get the directory containing a file path (for relative path resolution)
+pub fn get_source_dir(file_path: &Path) -> Option<PathBuf> {
+    file_path.parent().map(|p| p.to_path_buf())
+}
+
+/// Resolve a relative image path against a source directory
+pub fn resolve_image_path(relative_path: &str, source_dir: &Path) -> PathBuf {
+    if Path::new(relative_path).is_absolute() {
+        PathBuf::from(relative_path)
+    } else {
+        source_dir.join(relative_path)
+    }
 }

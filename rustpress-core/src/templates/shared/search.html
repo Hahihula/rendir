@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search</title>
+    <style>
+        .search-component {
+            position: relative;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .search-results.active {
+            display: block;
+        }
+
+        .search-result {
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .search-result:last-child {
+            border-bottom: none;
+        }
+
+        .search-result:hover {
+            background: #f5f5f5;
+        }
+
+        .search-result-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .search-result-snippet {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .search-result-tags {
+            margin-top: 6px;
+        }
+
+        .search-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #e3f2fd;
+            color: #1976D2;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-right: 4px;
+        }
+
+        .search-no-results {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-component">
+        <input type="text" class="search-input" placeholder="Search..." />
+        <div class="search-results"></div>
+    </div>
+
+    <script>
+    class SearchUI {
+        constructor(inputSelector, resultsSelector, index) {
+            this.input = document.querySelector(inputSelector);
+            this.resultsContainer = document.querySelector(resultsSelector);
+            this.index = index;
+            this.setupListeners();
+        }
+
+        setupListeners() {
+            if (!this.input) return;
+
+            this.input.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                if (query.length < 2) {
+                    this.resultsContainer.classList.remove('active');
+                    return;
+                }
+                const results = this.index.search(query, 10);
+                this.displayResults(results);
+            });
+
+            this.input.addEventListener('focus', () => {
+                if (this.input.value.trim().length >= 2) {
+                    this.resultsContainer.classList.add('active');
+                }
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.search-component')) {
+                    this.resultsContainer.classList.remove('active');
+                }
+            });
+        }
+
+        displayResults(results) {
+            if (results.length === 0) {
+                this.resultsContainer.innerHTML = '<div class="search-no-results">No results found</div>';
+            } else {
+                this.resultsContainer.innerHTML = results.map(r => `
+                    <div class="search-result" onclick="window.location.href='${r.url}'">
+                        <div class="search-result-title">${r.title}</div>
+                        <div class="search-result-snippet">${r.snippet}</div>
+                        ${r.tags && r.tags.length ? `<div class="search-result-tags">${r.tags.map(t => `<span class="search-tag">${t}</span>`).join('')}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+            this.resultsContainer.classList.add('active');
+        }
+    }
+
+    window.SearchUI = SearchUI;
+    </script>
+</body>
+</html>

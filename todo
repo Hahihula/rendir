@@ -1,2 +1,54 @@
+# TODO:
+
+  * upgrade all the templates and components to use vuejs from cdn
+  * on build time download and save or copy local link to js and css to dest folder
+  * optionaly merge images css and js files to single html file
+  * optionally minimize the resulting html/css/js
+  * maybe use rolldown ?
+  * ci should produce
+  	a) binaries for major systems
+  	b) dockerimage for ci
+  	c) github action for github
+  	d) gitlab ci template
+    e) mirror to github
+  * migrate from terra to different more suitable templating system without breaking anything
+  	( the results should be same before and after migration, but the code would be much cleaner )
+  * test on some public mdbooks
+  * add support for multilanguage sites
+  * blog and cookbook should have rss feature
+  * rss should have absolute paths
+
+
 ### Nice to have:
 the slides should have webrtc from display view to presenter view, so they can be controled
+live preview
+
+
+### rolldown implementation:
+
+rustpress build --input content/ --output dist/ --template blog
+
+Internal steps:
+Rust parses markdown → builds Vue Store JSON
+Rust copies template files + assets to output
+Rolldown/Vite bundles js/ and css/ (with the store data injected)
+Final HTML gets proper <script type="module" src="assets/index-hash.js"> + hashed CSS
+
+You could have a structure like:
+
+templates/blog/
+├── index.html          # base template
+├── src/
+│   ├── main.js
+│   ├── App.vue         # (optional, if you go full SFC)
+│   ├── components/
+│   └── store.js
+├── styles/
+└── rolldown.config.js  # or vite.config.js
+
+3. Key Features to SupportProduction vs Development mode (--minify flag)
+Asset hashing
+Support for importing CSS in JS (import './style.css')
+Option to inline critical CSS
+Ability to use Vue Single File Components (nice future upgrade)
+

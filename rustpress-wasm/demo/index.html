@@ -4,8 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rustpress Playground</title>
+  <title>Rustpress WASM Playground</title>
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       line-height: 1.6;
@@ -14,152 +15,257 @@
       margin: 0 auto;
       padding: 1rem;
     }
-
-    .container {
-      display: flex;
-      gap: 20px;
-      height: calc(100vh - 120px);
-    }
-
-    .editor,
-    .preview {
-      flex: 1;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 1rem;
-      overflow: auto;
-    }
-
-    textarea {
-      width: 100%;
-      height: 100%;
-      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    h1 { border-bottom: 1px solid #ddd; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+    .tabs { display: flex; gap: 0; margin-bottom: 1rem; border-bottom: 2px solid #e2e8f0; }
+    .tab-btn {
+      padding: 0.6rem 1.4rem;
       border: none;
-      resize: none;
+      background: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: #666;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
     }
-
-    textarea:focus {
-      outline: none;
-    }
-
-    h1 {
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 0.5rem;
-    }
-
-    .controls {
-      margin-bottom: 1rem;
-    }
-
-    button {
+    .tab-btn:hover { color: #4299e1; }
+    .tab-btn.active { color: #2b6cb0; border-bottom-color: #4299e1; font-weight: 600; }
+    .controls { margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: center; }
+    .controls button {
       background-color: #4299e1;
       color: white;
       border: none;
       padding: 0.5rem 1rem;
       border-radius: 4px;
       cursor: pointer;
+      font-size: 0.9rem;
     }
-
-    button:hover {
-      background-color: #3182ce;
+    .controls button:hover { background-color: #3182ce; }
+    .controls button.secondary { background-color: #718096; }
+    .controls button.secondary:hover { background-color: #4a5568; }
+    .controls span { color: #888; font-size: 0.85rem; margin-left: auto; }
+    .container { display: flex; gap: 20px; height: calc(100vh - 200px); }
+    .editor, .preview { flex: 1; border: 1px solid #ddd; border-radius: 4px; overflow: auto; }
+    .editor { display: flex; flex-direction: column; }
+    .editor-label {
+      padding: 8px 12px;
+      background: #f7fafc;
+      border-bottom: 1px solid #ddd;
+      font-size: 0.8rem;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+    textarea {
+      width: 100%;
+      flex: 1;
+      padding: 1rem;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.9rem;
+      border: none;
+      resize: none;
+    }
+    textarea:focus { outline: none; }
+    .preview { padding: 1rem; }
+    .alert { padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+    .alert-info { background-color: #e3f2fd; border-left: 5px solid #2196F3; }
+    .alert-warning { background-color: #fff9c4; border-left: 5px solid #ffc107; }
+    .alert-error { background-color: #ffebee; border-left: 5px solid #f44336; }
+    .tabs-container { margin: 20px 0; }
+    .tabs-header { display: flex; border-bottom: 1px solid #ddd; }
+    .tab-btn-head { padding: 10px 15px; border: none; background: none; cursor: pointer; }
+    .tab-btn-head.active { border-bottom: 2px solid #2196F3; }
+    .tab-pane { display: none; padding: 15px 0; }
+    .tab-pane.active { display: block; }
+    pre { background: #f4f4f4; padding: 15px; border-radius: 4px; overflow-x: auto; }
+    code { background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: 'Fira Code', Consolas, monospace; font-size: 0.9rem; }
+    pre code { background: none; padding: 0; }
+    img { max-width: 100%; }
   </style>
 </head>
-
 <body>
-  <h1>Rustpress Playground</h1>
+  <h1>Rustpress WASM Playground</h1>
+
+  <div class="tabs" id="modeTabs">
+    <button class="tab-btn active" data-tab="basic">Basic Usage</button>
+    <button class="tab-btn" data-tab="slideshow">Slideshow</button>
+  </div>
 
   <div class="controls">
     <button id="render-btn">Render</button>
-    <button id="reset-btn">Reset to Example</button>
+    <button id="reset-btn" class="secondary">Reset to Example</button>
+    <span id="mode-indicator">Basic markdown → HTML</span>
   </div>
 
   <div class="container">
     <div class="editor">
-      <textarea id="markdown-editor">
-# Welcome to Rustpress!
-
-This is a demo of the Rustpress static site generator.
-
-## Features
-
-- Markdown support
-- Custom components
-- Template system
-
-## Custom Components
-
-You can use custom components like this:
-
-<Alert type="info" title="Information">
-    This is an informational alert.
-</Alert>
-
-Or using the special markdown syntax:
-
-:::alert{type="warning" title="Warning"}
-This is a warning alert.
-:::
-
-## Tables
-
-| Feature | Status |
-|---------|--------|
-| Markdown | ✅ |
-| Components | ✅ |
-| WASM | ✅ |
-
-## Code Blocks
-
-```rust
-fn main() {
-println!("Hello, Rustpress!");
-}
-```
-        </textarea>
+      <div class="editor-label">Markdown Input</div>
+      <textarea id="markdown-editor" spellcheck="false"></textarea>
     </div>
-    <div class="preview" id="preview"></div>
+    <div class="preview" id="preview">
+      <p style="color:#999">Click <strong>Render</strong> or edit the markdown to see results.</p>
+    </div>
   </div>
   <script type="module">
-    // Import the WASM module
     import init, { Rustpress } from './rustpress_wasm.js';
 
     let rustpress;
+    let currentMode = 'basic';
 
-    // Initialize the WASM module
+    const basicExample = [
+      '# Welcome to Rustpress!',
+      '',
+      'This is a demo of the Rustpress static site generator.',
+      '',
+      '## Features',
+      '',
+      '- Markdown support',
+      '- Custom components',
+      '- Template system',
+      '',
+      '## Custom Components',
+      '',
+      'You can use custom components like this:',
+      '',
+      '<Alert type="info" title="Information">',
+      '    This is an informational alert.',
+      '</Alert>',
+      '',
+      'Or using the special markdown syntax:',
+      '',
+      ':::alert{type="warning" title="Warning"}',
+      'This is a warning alert.',
+      ':::',
+      '',
+      '## Tables',
+      '',
+      '| Feature | Status |',
+      '|---------|--------|',
+      '| Markdown | ✅ |',
+      '| Components | ✅ |',
+      '| WASM | ✅ |',
+      '',
+      '## Code Blocks',
+      '',
+      '```rust',
+      'fn main() {',
+      '    println!("Hello, Rustpress!");',
+      '}',
+      '```'
+    ].join('\n');
+
+    const slideshowExample = [
+      '---',
+      'title: "My WASM Presentation"',
+      'author: "Rustpress"',
+      '---',
+      '',
+      '<Slide title="Welcome">',
+      '# Rustpress + WASM',
+      '',
+      'This slideshow is rendered entirely in the browser via WebAssembly!',
+      '',
+      '- **Zero server** required',
+      '- **Reactive** Vue.js frontend',
+      '- **Fast** pre-built search',
+      '</Slide>',
+      '',
+      '<Slide title="Features" type="split-left">',
+      '## What can you do?',
+      '',
+      '- Create static sites',
+      '- Build presentations',
+      '- Generate documentation',
+      '- Searchable content',
+      '</Slide>',
+      '',
+      '<Slide title="Code Example">',
+      '## Embedded Code',
+      '',
+      '```rust',
+      'fn greet(name: &str) -> String {',
+      '    format!("Hello, {}!", name)',
+      '}',
+      '```',
+      '',
+      '> This slide shows a code block inside a slide.',
+      '</Slide>',
+      '',
+      '<Slide title="Thank You" type="center">',
+      '# Thank You!',
+      '',
+      'Built with Rust + Vue.js',
+      '',
+      '[Get Started](https://github.com)',
+      '</Slide>'
+    ].join('\n');
+
+    const EXAMPLES = {
+      basic: basicExample,
+      slideshow: slideshowExample
+    };
+
     async function initRustpress() {
       await init();
       rustpress = new Rustpress();
-      renderMarkdown();
+      loadExample();
     }
 
-    // Render markdown
     function renderMarkdown() {
-      const markdownEditor = document.getElementById('markdown-editor');
+      if (!rustpress) return;
+      const editor = document.getElementById('markdown-editor');
       const preview = document.getElementById('preview');
 
       try {
-        const result = rustpress.render_markdown(markdownEditor.value);
-        preview.innerHTML = result;
+        if (currentMode === 'slideshow') {
+          const result = rustpress.render_slideshow(editor.value);
+          preview.innerHTML = '';
+          const iframe = document.createElement('iframe');
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+          iframe.style.border = 'none';
+          preview.appendChild(iframe);
+          iframe.contentDocument.open();
+          iframe.contentDocument.write(result);
+          iframe.contentDocument.close();
+        } else {
+          preview.innerHTML = '';
+          preview.innerHTML = rustpress.render_markdown(editor.value);
+        }
       } catch (error) {
-        preview.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+        preview.innerHTML = '<div style="color: red; padding: 1rem;">Error: ' + error.message + '</div>';
         console.error(error);
       }
     }
 
-    // Reset to example markdown
-    function resetExample() {
-      document.getElementById('markdown-editor').innerText = `# Welcome to Rustpress!`;
+    function loadExample() {
+      document.getElementById('markdown-editor').value = EXAMPLES[currentMode];
+      renderMarkdown();
     }
-    renderMarkdown();
 
-    // Initialize
+    function switchMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('#modeTabs .tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelector('[data-tab="' + mode + '"]').classList.add('active');
+      document.getElementById('mode-indicator').textContent =
+        mode === 'slideshow' ? 'Slideshow - Vue SPA with embedded store' : 'Basic markdown - HTML';
+      loadExample();
+    }
+
     initRustpress();
 
-    // Event listeners
     document.getElementById('render-btn').addEventListener('click', renderMarkdown);
-    document.getElementById('reset-btn').addEventListener('click', resetExample);
+    document.getElementById('reset-btn').addEventListener('click', loadExample);
+
+    document.querySelectorAll('#modeTabs .tab-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { switchMode(btn.dataset.tab); });
+    });
+
+    var renderTimeout;
+    document.getElementById('markdown-editor').addEventListener('input', function() {
+      clearTimeout(renderTimeout);
+      renderTimeout = setTimeout(renderMarkdown, 300);
+    });
   </script>
 </body>
-
 </html>

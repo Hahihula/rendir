@@ -3,16 +3,38 @@
 <div align="center">
 <img src="./rustpress_logo.png" height="300" />
 </div>
-Rustpress is a flexible static site generator written in Rust, designed to convert Markdown content into static websites. It offers both CLI and WebAssembly (WASM) interfaces, with support for custom components, templates, and more.
+
+Rustpress is a flexible static site generator written in Rust that converts Markdown content into static websites. It uses a **Vue SPA architecture** — Rust parses and provides data as JSON, and Vue.js handles all rendering and interactivity on the client side.
+
+## Architecture
+
+```
+Markdown → Rust: parse Markdown + components → Vue Store JSON → Vue SPA renders UI
+```
+
+Rust processes Markdown and outputs a **Vue Store** (JSON) embedded in the HTML. Vue.js reads this data and handles all rendering, filtering, and interactivity. This keeps the Rust side simple (data processing only) and the client side reactive.
+
+## Templates
+
+Rustpress comes with three built-in templates, each using the Vue SPA approach:
+
+| Template | CLI Name | Description |
+|----------|----------|-------------|
+| **Blog** | `blog` | Blog landing with post cards, tag filtering, search |
+| **Slideshow** | `slideshow` | Presentation slides with keyboard/touch nav, presenter view |
+| **mdbook** | `mdbook` | Book/documentation with sidebar, prev/next, search |
+
+All templates embed store data via `<script id="store-data" type="application/json">{{STORE_DATA}}</script>` and render with Vue 3.
 
 ## Features
 
 - 📝 Markdown parsing with extended syntax
-- 🧩 Custom component system
-- 🎨 Templating with [Tera](https://tera.netlify.app/)
+- 🧩 Custom component system (Alert, YouTube, Tabs, Slide, Search, etc.)
+- 🖼️ **Vue SPA templates** — Blog, Slideshow, mdbook
+- 🔍 **Full-text search** — Inverted index built at build time, searched client-side
 - 🌐 WebAssembly compatibility
 - 📂 Directory-based content organization
-- 🔌 Extensible architecture
+- 🔌 Extensible architecture with component registry
 
 ## Installation
 
@@ -34,26 +56,43 @@ cargo install --path rustpress-cli
 
 ### CLI Tool
 
-The Rustpress CLI provides two main commands: `convert` for single files and `build` for entire directories.
+The CLI provides two main commands: `convert` for single files and `build` for entire directories.
 
-#### Convert a Single Markdown File
+#### Build a Blog
+
+```bash
+cargo run -p rustpress-cli -- build \
+  --input examples/blog/content/ \
+  --output /tmp/blog/ \
+  --template blog
+```
+
+#### Build a Slideshow
+
+```bash
+cargo run -p rustpress-cli -- build \
+  --input examples/slideshow/content/ \
+  --output /tmp/slideshow/ \
+  --template slideshow
+```
+
+#### Build an mdbook Project
+
+```bash
+cargo run -p rustpress-cli -- build \
+  --input examples/mdbook/content/ \
+  --output /tmp/mdbook/ \
+  --template mdbook
+```
+
+#### Convert a Single File
 
 ```bash
 # Basic conversion
 rustpress convert --input example.md --output example.html
 
-# Using a custom template
-rustpress convert --input example.md --output example.html --template my-template.html
-```
-
-#### Build a Site from a Directory
-
-```bash
-# Build a site
-rustpress build --input content/ --output site/
-
-# Build a site with a custom template
-rustpress build --input content/ --output site/ --template templates/blog.html
+# Using a template
+rustpress convert --input example.md --output example.html --template slideshow
 ```
 
 ### Custom Components
@@ -78,7 +117,13 @@ This is a warning alert.
 
 ### Built-in Components
 
-Rustpress comes with several built-in components:
+| Component | Syntax | Description |
+|-----------|--------|-------------|
+| Alert | `<Alert type="info">...</Alert>` | Callout boxes (info, warning, error) |
+| YouTube | `<YouTube id="dQw4w9WgXcQ" />` | Embed YouTube videos |
+| Tabs | `<Tabs>## Tab\nContent</Tabs>` | Tabbed content |
+| Slide | `<Slide title="..." type="full">...</Slide>` | Slideshow slides |
+| Search | `<Search placeholder="..." />` | Search interface |
 
 #### Alert
 
@@ -119,48 +164,75 @@ You can add metadata to your Markdown files using YAML frontmatter:
 ---
 title: My Page Title
 author: Jane Smith
-date: 2023-05-01
+date: 2024-01-15
 tags: [rust, static-site, markdown]
 ---
 
 # Content starts here
 ```
 
-### Templates
+### Vue Store Data
 
-Rustpress uses [Tera](https://tera.netlify.app/) for templating. Here's a basic template example:
+Each template receives its data via an embedded JSON script tag:
 
 ```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <style>
-        body {
-            font-family: system-ui, sans-serif;
-            line-height: 1.6;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-    </style>
-</head>
-<body>
-    <main>
-        {{ content | safe }}
-    </main>
-    <footer>
-        {% if author %}
-        <p>Written by {{ author }}</p>
-        {% endif %}
-    </footer>
-</body>
-</html>
+<script id="store-data" type="application/json">{{STORE_DATA}}</script>
 ```
 
-### WebAssembly Usage
+Vue parses this and uses it as reactive store data.
+
+#### SlideshowStore
+
+```javascript
+{
+  title: "Presentation Title",
+  slides: [
+    { id: 0, type: "full", title: "Slide", content: "<p>HTML</p>", notes: "", images: [] }
+  ],
+  current_slide_index: 0,
+  images: {}
+}
+```
+
+#### BlogIndexStore
+
+```javascript
+{
+  title: "Blog Title",
+  description: "A blog about...",
+  posts: [{ id, title, date, author, excerpt, tags, url }],
+  tags: [{ name: "rust", count: 3 }],
+  recent_posts: [...],
+  search_index: "{...}"  // JSON-serialized search index
+}
+```
+
+#### MdBookStore
+
+```javascript
+{
+  title: "Book Title",
+  chapters: [{ title, url, content, level, children, prev_chapter, next_chapter }],
+  current_chapter: { title, url, content, ... },
+  search_index: "{...}"  // JSON-serialized search index
+}
+```
+
+## Full-Text Search
+
+Rustpress builds a **full-text search index** at build time:
+
+1. **Rust** parses all documents, builds an inverted index (`BuiltSearchIndex`)
+2. **Index** is serialized to JSON and embedded in the store's `search_index` field
+3. **Client side** — a shared `ClientSearchIndex` class (in `templates/shared/search.js`) performs ranked search with:
+   - Exact word matches (+1.0)
+   - Title matches (+2.0)
+   - Content matches (+1.0)
+   - Snippet extraction with context
+
+Both **blog** and **mdbook** templates use this same shared search component.
+
+## WebAssembly Usage
 
 For browser usage, you can use the WASM build:
 
@@ -204,10 +276,28 @@ This is rendered using WebAssembly!
 
 ```
 rustpress/
-├── rustpress-core/      # Core library
+├── rustpress-core/      # Core library (parsing, rendering, components)
+│   └── src/
+│       ├── lib.rs           # Exports, tests
+│       ├── markdown.rs      # Markdown parsing
+│       ├── render.rs        # Template rendering + Vue store serialization
+│       ├── search.rs        # Full-text search index builder
+│       ├── types.rs         # Core types + Vue Store types
+│       ├── vue.rs           # Vue component support
+│       ├── mdbook.rs        # mdbook project parsing
+│       ├── components/      # Component registry + builtins
+│       └── templates/       # Built-in HTML templates
+│           ├── blog/        # Blog Vue SPA templates
+│           ├── slideshow/   # Slideshow Vue SPA templates
+│           ├── mdbook/      # mdbook Vue SPA template
+│           └── shared/      # Shared components (search.js)
 ├── rustpress-cli/       # CLI application
 ├── rustpress-wasm/      # WASM bindings
 └── examples/            # Example projects
+    ├── blog/            # Blog example
+    ├── slideshow/       # Slideshow example
+    ├── mdbook/          # mdbook ingestion example
+    └── search/          # Search functionality example
 ```
 
 ## Development
@@ -226,7 +316,10 @@ cargo build
 # Build WASM package
 cd rustpress-wasm
 wasm-pack build --target web
+cp ./demmo/index.html ./dist/
+cp ./pkg/* ./dist/
 ```
+than just serve the `./dist/` folder
 
 ### Running Tests
 
@@ -234,12 +327,20 @@ wasm-pack build --target web
 cargo test
 ```
 
-## Future Plans
+### Examples
 
-- Vue.js integration for themes
-- Search index generation
-- Plugin system
-- Server-side rendering via Vite
+Each template has a working example in `examples/`:
+
+```bash
+# Blog
+cargo run -p rustpress-cli -- build -i examples/blog/content -o /tmp/blog -t blog
+
+# Slideshow
+cargo run -p rustpress-cli -- build -i examples/slideshow/content -o /tmp/slideshow -t slideshow
+
+# mdbook
+cargo run -p rustpress-cli -- build -i examples/mdbook/content -o /tmp/mdbook -t mdbook
+```
 
 ## License
 

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
+    <title>{{ title }}</title>
     <style>
         /* Basic styling */
         body {
@@ -54,15 +54,24 @@
             border: none;
             background: none;
             cursor: pointer;
+            color: #666;
+            font-weight: normal;
         }
 
         .tab-btn.active {
+            color: #2196F3;
+            font-weight: bold;
             border-bottom: 2px solid #2196F3;
+        }
+
+        .tab-contents {
+            border: 1px solid #ddd;
+            border-top: none;
+            padding: 15px;
         }
 
         .tab-content {
             display: none;
-            padding: 15px 0;
         }
 
         .tab-content.active {
@@ -90,7 +99,7 @@
 
 <body>
     <main>
-        {{ content | safe }}
+        {{ content }}
     </main>
 </body>
 
