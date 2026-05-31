@@ -61,11 +61,7 @@ impl ComponentRenderer for TabsComponent {
                 if i == 0 && !section.starts_with("## ") {
                     continue;
                 }
-                let section = if section.starts_with("## ") {
-                    &section[3..]
-                } else {
-                    section
-                };
+                let section = section.strip_prefix("## ").unwrap_or(section);
                 let (tab_title, tab_body) = section.split_once('\n').unwrap_or((section, ""));
                 let tab_body = tab_body.trim_end();
 
@@ -151,9 +147,7 @@ impl ComponentRenderer for SlideComponent {
         } else {
             format!(
                 r#"<div class="slide slide-{}" data-type="{}"><div class="slide-content">{}</div></div>"#,
-                slide_type,
-                slide_type,
-                parsed_content
+                slide_type, slide_type, parsed_content
             )
         }
     }

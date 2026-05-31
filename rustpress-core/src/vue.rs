@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 code.push_str(",\n");
                 code.push_str(script);
             } else {
-                code.push_str("\n");
+                code.push('\n');
             }
 
             code.push_str("    });\n");
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
         );
 
         // Add styles
-        for (_, component) in &self.components {
+        for component in self.components.values() {
             if let Some(style) = &component.style {
                 code.push_str(&format!("<style>\n{}\n</style>\n", style));
             }
@@ -89,29 +89,26 @@ pub fn parse_vue_component(content: &str, name: &str) -> Result<VueComponent, &'
     // In a real implementation, you'd want to use a proper parser
 
     // Find <template> section
-    if let Some(template_start) = content.find("<template>") {
-        if let Some(template_end) = content.find("</template>") {
+    if let Some(template_start) = content.find("<template>")
+        && let Some(template_end) = content.find("</template>") {
             template = Some(
                 content[template_start + 10..template_end]
                     .trim()
                     .to_string(),
             );
         }
-    }
 
     // Find <script> section
-    if let Some(script_start) = content.find("<script>") {
-        if let Some(script_end) = content.find("</script>") {
+    if let Some(script_start) = content.find("<script>")
+        && let Some(script_end) = content.find("</script>") {
             script = Some(content[script_start + 8..script_end].trim().to_string());
         }
-    }
 
     // Find <style> section
-    if let Some(style_start) = content.find("<style>") {
-        if let Some(style_end) = content.find("</style>") {
+    if let Some(style_start) = content.find("<style>")
+        && let Some(style_end) = content.find("</style>") {
             style = Some(content[style_start + 7..style_end].trim().to_string());
         }
-    }
 
     if let Some(template_str) = template {
         Ok(VueComponent {

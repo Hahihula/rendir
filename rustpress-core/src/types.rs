@@ -50,8 +50,10 @@ pub enum RelationType {
 
 /// Slide layout types for slideshow Vue components
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Default)]
 pub enum SlideLayout {
     #[serde(rename = "full")]
+    #[default]
     Full,
     #[serde(rename = "split-left")]
     SplitLeft,
@@ -65,11 +67,6 @@ pub enum SlideLayout {
     ImageBg,
 }
 
-impl Default for SlideLayout {
-    fn default() -> Self {
-        SlideLayout::Full
-    }
-}
 
 /// A single slide in a slideshow
 #[derive(serde::Serialize, serde::Deserialize, Clone)]

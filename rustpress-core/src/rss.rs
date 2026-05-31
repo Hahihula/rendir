@@ -42,7 +42,9 @@ impl RssFeed {
     pub fn to_xml(&self) -> String {
         let mut xml = String::new();
         xml.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
-        xml.push_str("<rss version=\"2.0\" xmlns:content=\"http://purl.org/rss/1.0/modules/content/\">\n");
+        xml.push_str(
+            "<rss version=\"2.0\" xmlns:content=\"http://purl.org/rss/1.0/modules/content/\">\n",
+        );
         xml.push_str("  <channel>\n");
         append_xml(&mut xml, 2, "title", &self.title);
         append_xml(&mut xml, 2, "link", &self.link);
@@ -83,12 +85,21 @@ impl RssFeed {
 
 fn append_xml(xml: &mut String, indent: usize, tag: &str, value: &str) {
     let spaces = " ".repeat(indent);
-    xml.push_str(&format!("{}<{}>{}</{}>\n", spaces, tag, xml_escape(value), tag));
+    xml.push_str(&format!(
+        "{}<{}>{}</{}>\n",
+        spaces,
+        tag,
+        xml_escape(value),
+        tag
+    ));
 }
 
 fn append_xml_cdata(xml: &mut String, indent: usize, tag: &str, value: &str) {
     let spaces = " ".repeat(indent);
-    xml.push_str(&format!("{}<{}><![CDATA[{}]]></{}>\n", spaces, tag, value, tag));
+    xml.push_str(&format!(
+        "{}<{}><![CDATA[{}]]></{}>\n",
+        spaces, tag, value, tag
+    ));
 }
 
 fn xml_escape(s: &str) -> String {
@@ -150,11 +161,10 @@ fn decode_html_entity(entity: &str) -> String {
         _ => {
             if entity.starts_with("&#") && entity.ends_with(';') {
                 let num_str = &entity[2..entity.len() - 1];
-                if let Ok(code) = num_str.parse::<u32>() {
-                    if let Some(ch) = char::from_u32(code) {
+                if let Ok(code) = num_str.parse::<u32>()
+                    && let Some(ch) = char::from_u32(code) {
                         return ch.to_string();
                     }
-                }
             }
             entity.to_string()
         }
@@ -170,9 +180,11 @@ pub fn parse_date_to_rfc2822(date_str: &str) -> String {
 }
 
 fn try_parse_ymd(s: &str) -> Option<String> {
-    let s = s.split(|c: char| c == 'T' || c == ' ').next().unwrap_or(s);
+    let s = s.split(['T', ' ']).next().unwrap_or(s);
     let parts: Vec<&str> = s.split('-').collect();
-    if parts.len() != 3 { return None; }
+    if parts.len() != 3 {
+        return None;
+    }
     let year: i32 = parts[0].parse().ok()?;
     let month: u32 = parts[1].parse().ok()?;
     let day: u32 = parts[2].parse().ok()?;
@@ -180,10 +192,18 @@ fn try_parse_ymd(s: &str) -> Option<String> {
 }
 
 fn format_rfc2822_date(year: i32, month: u32, day: u32) -> String {
-    const MONTHS: &[&str] = &["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const DAYS: &[&str] = &["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const MONTHS: &[&str] = &[
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    const DAYS: &[&str] = &["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     let dow = compute_dow(year, month, day);
-    format!("{}, {:02} {} {} 00:00:00 +0000", DAYS[dow as usize], day, MONTHS[month as usize - 1], year)
+    format!(
+        "{}, {:02} {} {} 00:00:00 +0000",
+        DAYS[dow as usize],
+        day,
+        MONTHS[month as usize - 1],
+        year
+    )
 }
 
 fn compute_dow(year: i32, month: u32, day: u32) -> u32 {
@@ -198,11 +218,21 @@ pub fn now_rfc2822() -> String {
         .unwrap_or_default()
         .as_secs();
     let (year, month, day, hour, min, sec) = secs_to_datetime(ts);
-    let dow = compute_dow(year as i32, month, day);
-    const DAYS: &[&str] = &["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-    const MONTHS: &[&str] = &["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    format!("{}, {:02} {} {} {:02}:{:02}:{:02} +0000",
-        DAYS[dow as usize], day, MONTHS[month as usize - 1], year, hour, min, sec)
+    let dow = compute_dow(year, month, day);
+    const DAYS: &[&str] = &["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const MONTHS: &[&str] = &[
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    format!(
+        "{}, {:02} {} {} {:02}:{:02}:{:02} +0000",
+        DAYS[dow as usize],
+        day,
+        MONTHS[month as usize - 1],
+        year,
+        hour,
+        min,
+        sec
+    )
 }
 
 fn secs_to_datetime(secs: u64) -> (i32, u32, u32, u32, u32, u32) {
@@ -217,7 +247,14 @@ fn secs_to_datetime(secs: u64) -> (i32, u32, u32, u32, u32, u32) {
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = if m <= 2 { y + 1 } else { y };
     let ts = secs % 86400;
-    (year, m as u32, d as u32, (ts / 3600) as u32, ((ts % 3600) / 60) as u32, (ts % 60) as u32)
+    (
+        year,
+        m as u32,
+        d as u32,
+        (ts / 3600) as u32,
+        ((ts % 3600) / 60) as u32,
+        (ts % 60) as u32,
+    )
 }
 // ---------------------------------------------------------------------------
 // Tests

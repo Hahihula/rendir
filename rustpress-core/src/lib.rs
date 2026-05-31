@@ -16,7 +16,7 @@ pub use render::{
 };
 pub use search::{BuiltSearchIndex, SearchDocument, SearchIndex, SearchResult};
 pub use types::{ChapterNav, ChapterStore, MdBookStore, Slide, SlideLayout, SlideshowStore};
-pub use vue::{parse_vue_component, VueComponent, VueRegistry};
+pub use vue::{VueComponent, VueRegistry, parse_vue_component};
 
 #[cfg(test)]
 mod tests {
@@ -526,11 +526,15 @@ Some content with ![Icon](icons/icon.png) inline.
         let item =
             parse_markdown_with_path(content, None, Some(PathBuf::from("/project/src/page.md")));
         assert_eq!(item.image_references.len(), 2);
-        assert!(item.image_references[0]
-            .to_string_lossy()
-            .ends_with("logo.png"));
-        assert!(item.image_references[1]
-            .to_string_lossy()
-            .ends_with("icons/icon.png"));
+        assert!(
+            item.image_references[0]
+                .to_string_lossy()
+                .ends_with("logo.png")
+        );
+        assert!(
+            item.image_references[1]
+                .to_string_lossy()
+                .ends_with("icons/icon.png")
+        );
     }
 }

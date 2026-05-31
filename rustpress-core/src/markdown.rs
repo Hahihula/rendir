@@ -1,14 +1,15 @@
 use crate::components::{Component, ComponentRegistry};
 use crate::types::ContentItem;
-use pulldown_cmark::{html, Options, Parser};
+use pulldown_cmark::{Options, Parser, html};
 use regex::Regex;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// Process markdown to recognize custom components
 fn process_components(content: &str, registry: &ComponentRegistry) -> String {
-    // Process HTML-like component syntax - using a simpler approach without backreferences
     let opening_tag_regex = Regex::new(r"<([A-Z][A-Za-z0-9]+)(\s+[^>]*)?(?:/>|>)").unwrap();
+    let attr_regex = Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)""#).unwrap();
+    let md_attr_regex = Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)"|([a-zA-Z0-9_-]+)=([^"\s]+)"#).unwrap();
 
     let mut result = content.to_string();
     let mut replacements = Vec::new();
@@ -23,7 +24,6 @@ fn process_components(content: &str, registry: &ComponentRegistry) -> String {
         if full_match.as_str().ends_with("/>") {
             // Self-closing component
             // Parse attributes
-            let attr_regex = Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)""#).unwrap();
             let mut attributes = HashMap::new();
             for attr_match in attr_regex.captures_iter(attrs_str) {
                 attributes.insert(attr_match[1].to_string(), attr_match[2].to_string());
@@ -50,7 +50,6 @@ fn process_components(content: &str, registry: &ComponentRegistry) -> String {
                 let component_content = &result[full_match.end()..content_end];
 
                 // Parse attributes
-                let attr_regex = Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)""#).unwrap();
                 let mut attributes = HashMap::new();
                 for attr_match in attr_regex.captures_iter(attrs_str) {
                     attributes.insert(attr_match[1].to_string(), attr_match[2].to_string());
@@ -81,17 +80,16 @@ fn process_components(content: &str, registry: &ComponentRegistry) -> String {
 
     // Process markdown special syntax
     let md_component_regex = Regex::new(r":::([\w-]+)(?:\{([^}]*)\})?([\s\S]*?):::").unwrap();
-    let result = md_component_regex
+
+    md_component_regex
         .replace_all(&result, |caps: &regex::Captures| {
             let component_name = &caps[1];
             let attrs_str = caps.get(2).map_or("", |m| m.as_str());
             let content = caps.get(3).map(|m| m.as_str().trim().to_string());
 
             // Parse attributes
-            let attr_regex =
-                Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)"|([a-zA-Z0-9_-]+)=([^"\s]+)"#).unwrap();
             let mut attributes = HashMap::new();
-            for attr_match in attr_regex.captures_iter(attrs_str) {
+            for attr_match in md_attr_regex.captures_iter(attrs_str) {
                 let key = attr_match
                     .get(1)
                     .or_else(|| attr_match.get(3))
@@ -109,23 +107,16 @@ fn process_components(content: &str, registry: &ComponentRegistry) -> String {
             let component = Component {
                 name: component_name.to_string(),
                 attributes,
-                content: if content.is_none() {
-                    None
-                } else {
-                    Some(content.unwrap())
-                },
+                content,
             };
 
             if registry.has_component(component_name) {
                 registry.render(&component)
             } else {
-                // If not registered, convert to HTML comment
                 format!("<!-- Unknown component: {} -->", component_name)
             }
         })
-        .to_string();
-
-    result
+        .to_string()
 }
 
 /// Extract frontmatter and content from markdown
@@ -134,15 +125,15 @@ fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
     let mut metadata = HashMap::new();
 
     // Check if the content starts with "---" (frontmatter delimiter)
-    if content.starts_with("---") {
-        if let Some(end_index) = content[3..].find("\n---\n").map(|i| i + 3) {
+    if let Some(stripped) = content.strip_prefix("---") {
+        if let Some(end_index) = stripped.find("\n---\n") {
             // Handle Unix line endings (\n)
-            let frontmatter = &content[3..end_index];
-            let content_start = end_index + 5; // Skip past the ending "---" and newline
+            let frontmatter = &stripped[..end_index];
+            let content_start = 3 + end_index + 5; // 3 for "---", 5 for "\n---\n"
 
             // Parse YAML frontmatter
-            if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter) {
-                if let Some(map) = yaml_map.as_mapping() {
+            if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter)
+                && let Some(map) = yaml_map.as_mapping() {
                     for (key, value) in map {
                         if let Some(key_str) = key.as_str() {
                             let value_str = if let Some(seq) = value.as_sequence() {
@@ -159,16 +150,15 @@ fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
                         }
                     }
                 }
-            }
             return (metadata, &content[content_start..]);
-        } else if let Some(end_index) = content[3..].find("\r\n---\r\n").map(|i| i + 3) {
+        } else if let Some(end_index) = stripped.find("\r\n---\r\n") {
             // Handle Windows line endings (\r\n)
-            let frontmatter = &content[3..end_index];
-            let content_start = end_index + 7; // Skip past the ending "---\r\n"
+            let frontmatter = &stripped[..end_index];
+            let content_start = 3 + end_index + 7; // 3 for "---", 7 for "\r\n---\r\n"
 
             // Parse YAML frontmatter
-            if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter) {
-                if let Some(map) = yaml_map.as_mapping() {
+            if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter)
+                && let Some(map) = yaml_map.as_mapping() {
                     for (key, value) in map {
                         if let Some(key_str) = key.as_str() {
                             let value_str = if let Some(seq) = value.as_sequence() {
@@ -185,7 +175,6 @@ fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
                         }
                     }
                 }
-            }
             return (metadata, &content[content_start..]);
         }
     }
@@ -210,7 +199,7 @@ pub fn parse_markdown_with_path(
 
     // Process components if registry is provided
     let processed_content = if let Some(reg) = registry {
-        process_components(&content_without_frontmatter, reg)
+        process_components(content_without_frontmatter, reg)
     } else {
         content_without_frontmatter.to_string()
     };
