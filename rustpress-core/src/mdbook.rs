@@ -24,13 +24,13 @@ pub struct BookToml {
 }
 
 impl BookToml {
-    pub fn from_str(content: &str) -> Option<Self> {
+    pub fn parse(content: &str) -> Option<Self> {
         toml::from_str(content).ok()
     }
 
     pub fn from_path(path: &Path) -> Option<Self> {
         let content = std::fs::read_to_string(path).ok()?;
-        Self::from_str(&content)
+        Self::parse(&content)
     }
 }
 
@@ -48,7 +48,7 @@ pub struct Summary {
 }
 
 impl Summary {
-    pub fn from_str(content: &str) -> Self {
+    pub fn parse(content: &str) -> Self {
         let mut result = Vec::new();
         parse_chapters_recursive(
             content.lines().collect::<Vec<_>>().as_slice(),
@@ -60,7 +60,7 @@ impl Summary {
 
     pub fn from_path(path: &Path) -> Option<Self> {
         let content = std::fs::read_to_string(path).ok()?;
-        Some(Self::from_str(&content))
+        Some(Self::parse(&content))
     }
 
     pub fn all_chapters(&self) -> Vec<&Chapter> {
@@ -159,7 +159,7 @@ src = "src"
 [rust]
 edition = "2021"
 "#;
-        let config = BookToml::from_str(content).unwrap();
+        let config = BookToml::parse(content).unwrap();
         assert_eq!(config.book.title, Some("My Book".to_string()));
         assert_eq!(config.book.author, Some("Test Author".to_string()));
         assert_eq!(config.book.src, "src");
@@ -176,7 +176,7 @@ edition = "2021"
   - [Section 2.2](./chapter_2_2.md)
 - [Chapter 3](./chapter_3.md)
 "#;
-        let summary = Summary::from_str(content);
+        let summary = Summary::parse(content);
         assert_eq!(summary.chapters.len(), 3);
         assert_eq!(summary.chapters[0].title, "Chapter 1");
         assert_eq!(summary.chapters[1].children.len(), 2);
@@ -191,7 +191,7 @@ edition = "2021"
 - [Chapter 2](./chapter_2.md)
   - [Section 2.1](./chapter_2_1.md)
 "#;
-        let summary = Summary::from_str(content);
+        let summary = Summary::parse(content);
         let all = summary.all_chapters();
         assert_eq!(all.len(), 3);
     }

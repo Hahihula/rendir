@@ -4,7 +4,7 @@
 <img src="./rustpress_logo.png" height="300" />
 </div>
 
-Rustpress is a flexible static site generator written in Rust that converts Markdown content into static websites. It uses a **Vue SPA architecture** — Rust parses and provides data as JSON, and Vue.js handles all rendering and interactivity on the client side.
+Rustpress is a flexible static site generator written in Rust that converts Markdown content into static websites. It uses a **Vue SPA architecture** — Rust parses and provides data as JSON, and Vue.js handles all rendering and interactivity on the client side. A built-in **dev server with live reload** accelerates the development workflow.
 
 ## Architecture
 
@@ -32,6 +32,7 @@ All templates embed store data via `<script id="store-data" type="application/js
 - 🧩 Custom component system (Alert, YouTube, Tabs, Slide, Search, etc.)
 - 🖼️ **Vue SPA templates** — Blog, Slideshow, mdbook
 - 🔍 **Full-text search** — Inverted index built at build time, searched client-side
+- ⚡ **Dev server with live reload** — File watching + auto-rebuild + browser refresh
 - 🌐 WebAssembly compatibility
 - 📂 Directory-based content organization
 - 🔌 Extensible architecture with component registry
@@ -56,7 +57,7 @@ cargo install --path rustpress-cli
 
 ### CLI Tool
 
-The CLI provides two main commands: `convert` for single files and `build` for entire directories.
+The CLI provides three main commands: `convert` for single files, `build` for site generation, and `dev` for development with live reload.
 
 #### Build a Blog
 
@@ -94,6 +95,25 @@ rustpress convert --input example.md --output example.html
 # Using a template
 rustpress convert --input example.md --output example.html --template slideshow
 ```
+
+#### Development Server with Live Reload
+
+The `dev` command starts a development server with automatic rebuilding and live reload:
+
+```bash
+cargo run -p rustpress-cli -- dev \
+  --input examples/blog/content/ \
+  --output /tmp/blog/ \
+  --template blog
+```
+
+**Features:**
+- **File watching** — watches both input directory and template directory for changes
+- **Auto-rebuild** — rebuilds the site when source files change
+- **Live reload** — browser automatically refreshes when rebuild completes
+- **Debounced** — 200ms debounce prevents rapid rebuilds during batch edits
+
+The server serves on `http://localhost:3000` by default. After each rebuild, a version counter increments and all open browser tabs poll this counter — when it changes, the page reloads automatically.
 
 ### Custom Components
 
@@ -304,7 +324,7 @@ rustpress/
 
 ### Prerequisites
 
-- Rust 1.70 or higher
+- **Rust nightly** (required for `edition = "2024"`)
 - wasm-pack (for WASM development)
 
 ### Building
@@ -334,6 +354,9 @@ Each template has a working example in `examples/`:
 ```bash
 # Blog
 cargo run -p rustpress-cli -- build -i examples/blog/content -o /tmp/blog -t blog
+
+# Blog with live reload
+cargo run -p rustpress-cli -- dev -i examples/blog/content -o /tmp/blog -t blog
 
 # Slideshow
 cargo run -p rustpress-cli -- build -i examples/slideshow/content -o /tmp/slideshow -t slideshow

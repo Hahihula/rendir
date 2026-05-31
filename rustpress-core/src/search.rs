@@ -20,28 +20,21 @@ pub struct SearchResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchIndex {
-    #[serde(skip)]
-    index: std::collections::HashMap<String, Vec<SearchDocument>>,
     documents: Vec<SearchDocument>,
-    #[serde(skip)]
-    document_count: usize,
 }
 
 impl SearchIndex {
     pub fn new() -> Self {
         Self {
-            index: std::collections::HashMap::new(),
             documents: Vec::new(),
-            document_count: 0,
         }
     }
 
     pub fn add_document(&mut self, doc: SearchDocument) {
         self.documents.push(doc);
-        self.document_count += 1;
     }
 
-    pub fn build(mut self) -> BuiltSearchIndex {
+    pub fn build(self) -> BuiltSearchIndex {
         let mut index: std::collections::HashMap<String, Vec<SearchDocument>> =
             std::collections::HashMap::new();
         for doc in self.documents.clone() {
@@ -140,8 +133,8 @@ impl BuiltSearchIndex {
         let content_lower = content.to_lowercase();
         let query_words: Vec<&str> = query.split_whitespace().collect();
 
-        if let Some(first_word) = query_words.first() {
-            if let Some(pos) = content_lower.find(first_word) {
+        if let Some(first_word) = query_words.first()
+            && let Some(pos) = content_lower.find(first_word) {
                 let start = pos.saturating_sub(50);
                 let end = (pos + 150).min(content.len());
                 let mut snippet = content[start..end].to_string();
@@ -153,7 +146,6 @@ impl BuiltSearchIndex {
                 }
                 return snippet;
             }
-        }
 
         content[..150.min(content.len())].to_string()
     }

@@ -1,4 +1,6 @@
-use crate::types::{BlogIndexStore, ChapterStore, ContentItem, MdBookStore, Slide, SlideLayout, SlideshowStore};
+use crate::types::{
+    BlogIndexStore, ChapterStore, ContentItem, MdBookStore, Slide, SlideLayout, SlideshowStore,
+};
 use std::collections::HashMap;
 
 const DEFAULT_HTML_TEMPLATE: &str = include_str!("templates/default.html");
@@ -55,7 +57,11 @@ pub fn render_with_template(
     let author = item.metadata.get("author").cloned().unwrap_or_default();
     let date = item.metadata.get("date").cloned().unwrap_or_default();
     let category = item.metadata.get("category").cloned().unwrap_or_default();
-    let description = item.metadata.get("description").cloned().unwrap_or_default();
+    let description = item
+        .metadata
+        .get("description")
+        .cloned()
+        .unwrap_or_default();
     let tags: Vec<String> = item
         .metadata
         .get("tags")
@@ -111,10 +117,7 @@ pub fn content_to_slideshow_store(item: &ContentItem) -> SlideshowStore {
         .unwrap_or_else(|| "Slideshow".to_string());
 
     let default_content = String::new();
-    let content = item
-        .rendered_content
-        .as_ref()
-        .unwrap_or(&default_content);
+    let content = item.rendered_content.as_ref().unwrap_or(&default_content);
 
     // Parse slides from the HTML content
     let slides = parse_slides_from_html(content);
@@ -145,18 +148,24 @@ fn parse_slides_from_html(html: &str) -> Vec<Slide> {
 
     // Match slide elements: <div class="slide slide-..." data-title="...">...</div>
     let slide_regex = regex::Regex::new(
-        r#"<div\s+class="slide\s+slide-([^"]+)"\s+data-title="([^"]*)"[^>]*>([\s\S]*?)</div>"#
-    ).unwrap();
+        r#"<div\s+class="slide\s+slide-([^"]+)"\s+data-title="([^"]*)"[^>]*>([\s\S]*?)</div>"#,
+    )
+    .unwrap();
 
     // Also match slides without title
-    let slide_no_title_regex = regex::Regex::new(
-        r#"<div\s+class="slide\s+slide-([^"]+)"[^>]*>([\s\S]*?)</div>"#
-    ).unwrap();
+    let slide_no_title_regex =
+        regex::Regex::new(r#"<div\s+class="slide\s+slide-([^"]+)"[^>]*>([\s\S]*?)</div>"#).unwrap();
 
     for cap in slide_regex.captures_iter(html) {
         let type_str = cap.get(1).map(|m| m.as_str()).unwrap_or("full");
-        let title = cap.get(2).map(|m| m.as_str().to_string()).unwrap_or_default();
-        let content = cap.get(3).map(|m| m.as_str().to_string()).unwrap_or_default();
+        let title = cap
+            .get(2)
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default();
+        let content = cap
+            .get(3)
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default();
 
         let layout = parse_layout_from_tag(type_str);
 
@@ -175,7 +184,10 @@ fn parse_slides_from_html(html: &str) -> Vec<Slide> {
     if slides.is_empty() {
         for cap in slide_no_title_regex.captures_iter(html) {
             let type_str = cap.get(1).map(|m| m.as_str()).unwrap_or("full");
-            let content = cap.get(2).map(|m| m.as_str().to_string()).unwrap_or_default();
+            let content = cap
+                .get(2)
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_default();
 
             let layout = parse_layout_from_tag(type_str);
 
@@ -244,9 +256,13 @@ pub fn render_presenter_vue(item: &ContentItem) -> String {
 
 /// Render blog index using Vue SPA template with embedded store data
 pub fn render_blog_index_vue(store: &BlogIndexStore) -> String {
-    let store_json = serde_json::to_string(store).unwrap_or_else(|_| r#"{"title":"Error"}"#.to_string());
+    let store_json =
+        serde_json::to_string(store).unwrap_or_else(|_| r#"{"title":"Error"}"#.to_string());
     let html = BLOG_INDEX_TEMPLATE.replace("{{STORE_DATA}}", &store_json);
-    html.replace("{{SEARCH_COMPONENT_SCRIPT}}", &format!("<script>\n{}</script>", SHARED_SEARCH_JS))
+    html.replace(
+        "{{SEARCH_COMPONENT_SCRIPT}}",
+        &format!("<script>\n{}</script>", SHARED_SEARCH_JS),
+    )
 }
 
 /// Render mdbook chapter using Vue SPA template with embedded store data
@@ -262,7 +278,11 @@ pub fn render_mdbook_vue(
         current_chapter: current_chapter.clone(),
         search_index: search_index_json.to_string(),
     };
-    let store_json = serde_json::to_string(&store).unwrap_or_else(|_| r#"{"title":"Error"}"#.to_string());
+    let store_json =
+        serde_json::to_string(&store).unwrap_or_else(|_| r#"{"title":"Error"}"#.to_string());
     let html = MDBOOK_TEMPLATE.replace("{{STORE_DATA}}", &store_json);
-    html.replace("{{SEARCH_COMPONENT_SCRIPT}}", &format!("<script>\n{}</script>", SHARED_SEARCH_JS))
+    html.replace(
+        "{{SEARCH_COMPONENT_SCRIPT}}",
+        &format!("<script>\n{}</script>", SHARED_SEARCH_JS),
+    )
 }
