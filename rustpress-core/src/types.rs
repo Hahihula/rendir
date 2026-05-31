@@ -21,6 +21,44 @@ pub struct ContentItem {
 
     /// Image file paths referenced in this content
     pub image_references: Vec<PathBuf>,
+
+    /// Language code (e.g., "en", "de", "cs", "zh")
+    #[serde(default)]
+    pub language: Option<String>,
+
+    /// All available translations of this page
+    #[serde(default)]
+    pub translations: Vec<Translation>,
+
+    /// Whether this content was generated from fallback language
+    #[serde(default)]
+    pub is_fallback: bool,
+}
+
+/// Represents a translation of a page
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct Translation {
+    /// Language code
+    pub language: String,
+    /// URL to the translated page
+    pub url: String,
+    /// Title of the translated page
+    pub title: String,
+    /// Whether this translation actually exists or is a fallback
+    #[serde(default)]
+    pub exists: bool,
+}
+
+/// Represents a supported language
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+pub struct Language {
+    /// Language code (e.g., "en", "de", "cs", "zh")
+    pub code: String,
+    /// Native name (e.g., "English", "Deutsch", "Čeština", "中文")
+    pub name: String,
+    /// Whether this is the default/fallback language
+    #[serde(default)]
+    pub is_default: bool,
 }
 
 /// Represents a relationship between content items
@@ -49,8 +87,7 @@ pub enum RelationType {
 // =============================================================================
 
 /// Slide layout types for slideshow Vue components
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
-#[derive(Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
 pub enum SlideLayout {
     #[serde(rename = "full")]
     #[default]
@@ -66,7 +103,6 @@ pub enum SlideLayout {
     #[serde(rename = "image-bg")]
     ImageBg,
 }
-
 
 /// A single slide in a slideshow
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -102,6 +138,9 @@ pub struct BlogPostStore {
     pub tags: Vec<String>,
     pub content: String,
     pub images: Vec<String>,
+    /// Available translations for this post
+    #[serde(default)]
+    pub translations: Vec<Translation>,
 }
 
 /// Vue store data for the blog index
@@ -116,6 +155,9 @@ pub struct BlogIndexStore {
     /// JSON-serialized BuiltSearchIndex for client-side full-text search
     #[serde(default)]
     pub search_index: String,
+    /// Available languages for i18n
+    #[serde(default)]
+    pub languages: Vec<Language>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -144,6 +186,9 @@ pub struct MdBookStore {
     /// JSON-serialized BuiltSearchIndex for client-side full-text search
     #[serde(default)]
     pub search_index: String,
+    /// Available languages for i18n
+    #[serde(default)]
+    pub languages: Vec<Language>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
@@ -155,6 +200,9 @@ pub struct ChapterStore {
     pub children: Vec<ChapterStore>,
     pub prev_chapter: Option<ChapterNav>,
     pub next_chapter: Option<ChapterNav>,
+    /// Available translations for this chapter
+    #[serde(default)]
+    pub translations: Vec<Translation>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]

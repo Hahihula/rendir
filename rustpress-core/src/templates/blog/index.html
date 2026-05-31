@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html :lang="currentLang">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
+    <template id="hreflang-tags">{{HREFLANG_TAGS}}</template>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -114,6 +115,7 @@
             background: #fff;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            position: relative;
         }
 
         header h1 {
@@ -125,6 +127,100 @@
         header p {
             color: #666;
             font-size: 1.1rem;
+        }
+
+        #language-selector {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        /* Language Selector Styles */
+        .lang-selector {
+            position: relative;
+            display: inline-block;
+        }
+
+        .lang-current {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #333;
+            transition: all 0.2s;
+        }
+
+        .lang-current:hover {
+            border-color: #2196F3;
+            background: #f8f9fa;
+        }
+
+        .lang-arrow {
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }
+
+        .lang-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            min-width: 150px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            list-style: none;
+            padding: 4px 0;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all 0.2s;
+            z-index: 1000;
+        }
+
+        .lang-dropdown.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .lang-dropdown li {
+            margin: 0;
+        }
+
+        .lang-dropdown a {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            color: #333;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background 0.1s;
+        }
+
+        .lang-dropdown a:hover {
+            background: #f5f5f5;
+        }
+
+        .lang-fallback {
+            opacity: 0.7;
+            font-style: italic;
+        }
+
+        .lang-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            background: #fff3cd;
+            color: #856404;
+            border-radius: 3px;
+            margin-left: 8px;
         }
 
         .posts {
@@ -239,6 +335,7 @@
             <header>
                 <h1>{{ title }}</h1>
                 <p>{{ description }}</p>
+                <language-selector id="language-selector" :languages="languages" :current-lang="currentLang" />
             </header>
 
             <div class="posts">
@@ -268,10 +365,14 @@
     </div>
 
     {{SEARCH_COMPONENT_SCRIPT}}
+    {{LANGUAGE_SELECTOR_SCRIPT}}
     <script>
         const { createApp, ref, computed } = Vue;
 
         const app = createApp({
+            components: {
+                'language-selector': window.LanguageSelector
+            },
             setup() {
                 const store = JSON.parse(
                     document.getElementById('store-data').textContent
@@ -280,7 +381,6 @@
                 const searchQuery = ref('');
                 const selectedTag = ref(null);
 
-                // Build search engine from the pre-built Rust index
                 let searchEngine = null;
                 try {
                     if (store.search_index) {
@@ -307,20 +407,27 @@
                     return posts;
                 });
 
-                const recentPosts = computed(() => {
-                    return store.recent_posts || [];
-                });
-
-                const tags = computed(() => {
-                    return store.tags || [];
-                });
+                const recentPosts = computed(() => store.recent_posts || []);
+                const tags = computed(() => store.tags || []);
+                const languages = computed(() => store.languages || []);
+                
+                function getCurrentLangFromUrl() {
+                    const path = window.location.pathname;
+                    const parts = path.split('/').filter(p => p);
+                    if (parts.length > 0) {
+                        const firstPart = parts[0];
+                        if (languages.value.some(l => l.code === firstPart)) {
+                            return firstPart;
+                        }
+                    }
+                    const defaultLang = languages.value.find(l => l.is_default);
+                    return defaultLang ? defaultLang.code : (languages.value[0]?.code || 'en');
+                }
+                
+                const currentLang = computed(() => getCurrentLangFromUrl());
 
                 function toggleTag(tagName) {
-                    if (selectedTag.value === tagName) {
-                        selectedTag.value = null;
-                    } else {
-                        selectedTag.value = tagName;
-                    }
+                    selectedTag.value = selectedTag.value === tagName ? null : tagName;
                 }
 
                 function goToPost(url) {
@@ -333,6 +440,8 @@
                     filteredPosts,
                     recentPosts,
                     tags,
+                    languages,
+                    currentLang,
                     searchQuery,
                     selectedTag,
                     toggleTag,

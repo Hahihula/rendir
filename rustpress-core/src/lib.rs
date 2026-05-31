@@ -1,4 +1,5 @@
 pub mod components;
+pub mod i18n;
 pub mod markdown;
 pub mod mdbook;
 pub mod render;
@@ -8,6 +9,7 @@ pub mod types;
 pub mod vue;
 
 pub use components::{Component, ComponentRegistry};
+pub use i18n::I18nBuilder;
 pub use markdown::{parse_markdown, parse_markdown_with_path};
 pub use render::{
     content_to_slideshow_store, get_builtin_template, render_blog_index_vue, render_html,
@@ -15,7 +17,7 @@ pub use render::{
     serialize_slideshow_store,
 };
 pub use search::{BuiltSearchIndex, SearchDocument, SearchIndex, SearchResult};
-pub use types::{ChapterNav, ChapterStore, MdBookStore, Slide, SlideLayout, SlideshowStore};
+pub use types::{ChapterNav, ChapterStore, Language, MdBookStore, Slide, SlideLayout, SlideshowStore, Translation};
 pub use vue::{VueComponent, VueRegistry, parse_vue_component};
 
 #[cfg(test)]

@@ -4,12 +4,13 @@ use notify::{RecursiveMode, Watcher};
 use rustpress_core::components::{builtins::register_builtin_components, ComponentRegistry};
 use rustpress_core::{
     get_builtin_template,
+    i18n::I18nBuilder,
     mdbook::{BookToml, Chapter, Summary},
     parse_markdown_with_path, render_blog_index_vue, render_html, render_mdbook_vue,
     render_slideshow_vue, render_with_template,
     rss::{parse_date_to_rfc2822, strip_html, RssFeed, RssItem},
     search::SearchDocument,
-    types::{BlogIndexStore, BlogPostSummary, ChapterNav, ChapterStore, ContentItem, TagCount},
+    types::{BlogIndexStore, BlogPostSummary, ChapterNav, ChapterStore, ContentItem, Language, TagCount},
 };
 use std::fs::{self, File};
 use std::io::Write;
@@ -197,6 +198,7 @@ fn build_chapter_store(
         children,
         prev_chapter,
         next_chapter,
+        translations: Vec::new(),
     }
 }
 
@@ -353,6 +355,13 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
     } else {
         input.to_path_buf()
     };
+
+    let detected_languages = I18nBuilder::detect_languages(&src_dir);
+    let is_i18n = detected_languages.len() > 1;
+
+    if is_i18n {
+        return run_build_i18n(input, output, template, &detected_languages);
+    }
 
     let builtin_template_name: Option<String> = template.as_ref().and_then(|p| {
         let name = p.to_string_lossy();
@@ -531,6 +540,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
             tags,
             recent_posts,
             search_index: search_index.clone(),
+            languages: detected_languages.clone(),
         }
     };
 
@@ -578,6 +588,9 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                             rendered_content: Some(rendered.clone()),
                             related_items: vec![],
                             image_references: vec![],
+                            language: None,
+                            translations: Vec::new(),
+                            is_fallback: false,
                         },
                         template_to_use,
                         get_builtin_template(template_to_use).unwrap_or_default(),
@@ -616,6 +629,9 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     rendered_content: Some(rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                    language: None,
+                    translations: Vec::new(),
+                    is_fallback: false,
                 };
 
                 render_with_template(&content_item, template_to_use, template_content)
@@ -627,6 +643,9 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     rendered_content: Some(rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                    language: None,
+                    translations: Vec::new(),
+                    is_fallback: false,
                 })
             }
         } else if let Some(ref content) = custom_template_content {
@@ -638,6 +657,9 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     rendered_content: Some(rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
+                    language: None,
+                    translations: Vec::new(),
+                    is_fallback: false,
                 },
                 "custom",
                 content,
@@ -650,6 +672,9 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                 rendered_content: Some(rendered.clone()),
                 related_items: vec![],
                 image_references: vec![],
+                language: None,
+                translations: Vec::new(),
+                is_fallback: false,
             })
         };
 
@@ -772,6 +797,432 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
 
     println!("Build completed successfully.");
     Ok(())
+}
+
+/// Build a multi-language site (i18n)
+fn run_build_i18n(
+    input: &Path,
+    output: &Path,
+    _template: &Option<PathBuf>,
+    languages: &[Language],
+) -> Result<()> {
+    let mut registry = ComponentRegistry::new();
+    register_builtin_components(&mut registry);
+
+    let mut i18n_builder = I18nBuilder::new("en");
+    if let Err(e) = i18n_builder.build_index(input) {
+        eprintln!("Warning: i18n index build failed: {}", e);
+    }
+
+    let _default_lang = languages
+        .iter()
+        .find(|l| l.is_default)
+        .or(languages.first())
+        .cloned()
+        .unwrap_or(Language {
+            code: "en".to_string(),
+            name: "English".to_string(),
+            is_default: true,
+        });
+
+    let book_toml = input
+        .join("book.toml")
+        .exists()
+        .then(|| BookToml::from_path(&input.join("book.toml")).unwrap_or_default());
+
+    let _summary = input
+        .join("SUMMARY.md")
+        .exists()
+        .then(|| Summary::from_path(&input.join("SUMMARY.md")))
+        .flatten();
+
+    let src_dir = input.join(
+        book_toml
+            .as_ref()
+            .map(|b| b.book.src.as_str())
+            .unwrap_or("src"),
+    );
+    let src_dir = if src_dir.exists() {
+        src_dir
+    } else {
+        input.to_path_buf()
+    };
+
+    let book_title = book_toml
+        .as_ref()
+        .and_then(|b| b.book.title.clone())
+        .unwrap_or_else(|| "Site".to_string());
+
+    for lang in languages {
+        let lang_output = output.join(&lang.code);
+        fs::create_dir_all(&lang_output)?;
+
+        println!("Building {} ({}) site...", lang.name, lang.code);
+
+        let lang_src_dir = src_dir.join(&lang.code);
+        if !lang_src_dir.exists() {
+            eprintln!(
+                "Warning: Language directory '{}' does not exist, skipping",
+                lang_src_dir.display()
+            );
+            continue;
+        }
+
+        let mut search_docs: Vec<SearchDocument> = Vec::new();
+        let mut all_items: Vec<(PathBuf, PathBuf, String, String, std::collections::HashMap<String, String>, bool)> = Vec::new();
+
+        for entry in WalkDir::new(&lang_src_dir) {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            let path = entry.path();
+
+            if path.is_file() && path.extension().is_some_and(|ext| ext == "md") {
+                let content = fs::read_to_string(path)?;
+                let item = parse_markdown_with_path(&content, Some(&registry), Some(PathBuf::from(path)));
+
+                let rel_path = path.strip_prefix(&lang_src_dir)?;
+                let rel_path_str = rel_path.to_string_lossy().replace(".md", "");
+                let file_stem = rel_path
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "Chapter".to_string());
+
+                let plain_content = item
+                    .rendered_content
+                    .as_deref()
+                    .unwrap_or("")
+                    .replace("<", " <")
+                    .split_whitespace()
+                    .filter(|w| !w.starts_with('<') || w.ends_with('>'))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                search_docs.push(SearchDocument {
+                    id: format!("{}/{}", lang.code, rel_path_str.clone()),
+                    title: item
+                        .metadata
+                        .get("title")
+                        .cloned()
+                        .unwrap_or_else(|| file_stem.clone()),
+                    content: plain_content,
+                    url: format!("{}/{}.html", lang.code, rel_path_str.replace("src/", "")),
+                    tags: vec![],
+                });
+
+                let output_path = lang_output.join(rel_path).with_extension("html");
+                all_items.push((
+                    rel_path.to_path_buf(),
+                    output_path,
+                    file_stem,
+                    item.rendered_content.unwrap_or_default(),
+                    item.metadata,
+                    false,
+                ));
+            }
+        }
+
+        for lang_code in languages {
+            let fallback_dir = src_dir.join(&lang_code.code);
+            if fallback_dir.exists() && fallback_dir != lang_src_dir {
+                let rel_path_strs: Vec<String> = all_items
+                    .iter()
+                    .map(|(rp, _, _, _, _, _)| rp.to_string_lossy().replace(".md", ""))
+                    .collect();
+
+                for entry in WalkDir::new(&fallback_dir) {
+                    let entry = match entry {
+                        Ok(e) => e,
+                        Err(_) => continue,
+                    };
+                    let path = entry.path();
+
+                    if path.is_file() && path.extension().is_some_and(|ext| ext == "md") {
+                        let rel_path = path.strip_prefix(&fallback_dir).unwrap_or(path);
+                        let rel_path_str = rel_path.to_string_lossy().replace(".md", "");
+
+                        if !rel_path_strs.contains(&rel_path_str) {
+                            if let Some((title, fallback_content)) =
+                                i18n_builder.get_fallback_content(&rel_path_str)
+                            {
+                                let item = parse_markdown_with_path(
+                                    &fallback_content,
+                                    Some(&registry),
+                                    Some(PathBuf::from(path)),
+                                );
+
+                                let plain_content = item
+                                    .rendered_content
+                                    .as_deref()
+                                    .unwrap_or("")
+                                    .replace("<", " <")
+                                    .split_whitespace()
+                                    .filter(|w| !w.starts_with('<') || w.ends_with('>'))
+                                    .collect::<Vec<_>>()
+                                    .join(" ");
+
+                                let mut metadata = item.metadata.clone();
+                                metadata.insert("title".to_string(), title.clone());
+
+                                search_docs.push(SearchDocument {
+                                    id: format!("{}/{}", lang.code, rel_path_str.clone()),
+                                    title: title.clone(),
+                                    content: plain_content,
+                                    url: format!(
+                                        "{}/{}.html",
+                                        lang.code,
+                                        rel_path_str.replace("src/", "")
+                                    ),
+                                    tags: vec![],
+                                });
+
+                                let output_path = lang_output.join(rel_path).with_extension("html");
+                                all_items.push((
+                                    rel_path.to_path_buf(),
+                                    output_path,
+                                    rel_path
+                                        .file_stem()
+                                        .map(|s| s.to_string_lossy().to_string())
+                                        .unwrap_or_default(),
+                                    item.rendered_content.unwrap_or_default(),
+                                    metadata,
+                                    true,
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let search_index = if !search_docs.is_empty() {
+            let mut idx = rustpress_core::search::SearchIndex::new();
+            for doc in &search_docs {
+                idx.add_document(doc.clone());
+            }
+            let built = idx.build();
+            serde_json::to_string(&built).unwrap_or_else(|e| {
+                eprintln!("Search JSON error: {}", e);
+                String::new()
+            })
+        } else {
+            String::new()
+        };
+
+        let all_posts: Vec<_> = all_items
+            .iter()
+            .filter(|(rp, _, _, _, _, _)| rp.to_string_lossy().contains("posts/"))
+            .collect();
+
+        let posts: Vec<BlogPostSummary> = all_posts
+            .iter()
+            .map(|(rp, _, _, _, meta, _)| {
+                let post_tags: Vec<String> = meta
+                    .get("tags")
+                    .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
+                    .unwrap_or_default();
+                BlogPostSummary {
+                    id: rp.to_string_lossy().replace(".md", ""),
+                    title: meta.get("title").cloned().unwrap_or_default(),
+                    date: meta.get("date").cloned().unwrap_or_default(),
+                    author: meta.get("author").cloned().unwrap_or_default(),
+                    excerpt: String::new(),
+                    tags: post_tags,
+                    url: format!(
+                        "{}.html",
+                        rp.to_string_lossy().replace(".md", "")
+                    ),
+                }
+            })
+            .collect();
+
+        let mut all_tags: std::collections::HashMap<String, usize> =
+            std::collections::HashMap::new();
+        for (_, _, _, _, meta, _) in &all_posts {
+            if let Some(tags) = meta.get("tags") {
+                for tag in tags.split(',') {
+                    *all_tags.entry(tag.trim().to_string()).or_insert(0) += 1;
+                }
+            }
+        }
+        let tags: Vec<TagCount> = all_tags
+            .into_iter()
+            .map(|(name, count)| TagCount { name, count })
+            .collect();
+
+        let recent_posts: Vec<BlogPostSummary> = all_posts
+            .iter()
+            .take(5)
+            .map(|(rp, _, _, _, meta, _)| BlogPostSummary {
+                id: rp.to_string_lossy().replace(".md", ""),
+                title: meta.get("title").cloned().unwrap_or_default(),
+                date: meta.get("date").cloned().unwrap_or_default(),
+                author: meta.get("author").cloned().unwrap_or_default(),
+                excerpt: String::new(),
+                tags: meta
+                    .get("tags")
+                    .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
+                    .unwrap_or_default(),
+                url: format!(
+                    "{}.html",
+                    rp.to_string_lossy().replace(".md", "")
+                ),
+            })
+            .collect();
+
+        let hreflang_tags = generate_hreflang_tags(languages);
+
+        let landing_page_store = BlogIndexStore {
+            title: book_title.clone(),
+            description: format!("{} - {}", book_title, lang.name),
+            content: String::new(),
+            posts,
+            tags,
+            recent_posts,
+            search_index: search_index.clone(),
+            languages: languages.to_vec(),
+        };
+
+        for (rel_path, output_path, _file_stem, rendered, metadata, is_fallback) in &all_items {
+            if let Some(parent) = output_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+
+            let rel_path_str = rel_path.to_string_lossy().replace(".md", "");
+            let is_post = rel_path_str.contains("posts/");
+            let is_landing = rel_path_str == "landing";
+
+            let translations = i18n_builder.get_translations(&rel_path_str);
+
+            let translations_json = serde_json::to_string(&translations).unwrap_or_default();
+            let mut metadata = metadata.clone();
+            metadata.insert("translations".to_string(), translations_json);
+
+            let html = if is_landing {
+                let mut html = render_blog_index_vue(&landing_page_store);
+                html = html.replace("{{HREFLANG_TAGS}}", &hreflang_tags);
+                html
+            } else if is_post {
+                let mut metadata = metadata.clone();
+                metadata.insert("content".to_string(), rendered.clone());
+                let content_item = ContentItem {
+                    path: None,
+                    content: String::new(),
+                    metadata,
+                    rendered_content: Some(rendered.clone()),
+                    related_items: vec![],
+                    image_references: vec![],
+                    language: Some(lang.code.clone()),
+                    translations,
+                    is_fallback: *is_fallback,
+                };
+                let template_content =
+                    get_builtin_template("blog/post").unwrap_or_default();
+                render_with_template(&content_item, "blog/post", template_content)
+            } else {
+                let content_item = ContentItem {
+                    path: None,
+                    content: String::new(),
+                    metadata: metadata.clone(),
+                    rendered_content: Some(rendered.clone()),
+                    related_items: vec![],
+                    image_references: vec![],
+                    language: Some(lang.code.clone()),
+                    translations,
+                    is_fallback: *is_fallback,
+                };
+                let template_content =
+                    get_builtin_template("blog/index").unwrap_or_default();
+                render_with_template(&content_item, "blog/index", template_content)
+            };
+
+            if html.len() < 500 {
+                eprintln!(
+                    "WARNING: Generated file '{}' is very small ({} bytes). Possible template issue.",
+                    output_path.display(),
+                    html.len()
+                );
+            }
+
+            fs::write(output_path, &html)?;
+            println!("Generated: {}", &output_path.display());
+        }
+
+        if is_i18n_landing(&all_items) {
+            let index_html = format!(
+                r#"<!DOCTYPE html>
+<html lang="{}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{}</title>
+    <meta http-equiv="refresh" content="0; url='/{}/landing.html'">
+</head>
+<body>
+    <p>Redirecting to <a href="/{}/landing.html">{}</a>...</p>
+</body>
+</html>"#,
+                lang.code, book_title, lang.code, lang.code, lang.name
+            );
+            fs::write(lang_output.join("index.html"), index_html)?;
+            println!("Generated: {}/index.html", lang_output.display());
+        }
+    }
+
+    let root_index = format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{}</title>
+</head>
+<body>
+    <h1>{}</h1>
+    <p>Select your language:</p>
+    <ul>
+        {}
+    </ul>
+</body>
+</html>"#,
+        book_title,
+        book_title,
+        languages
+            .iter()
+            .map(|l| {
+                format!(
+                    "<li><a href=\"/{}/\">{}</a></li>",
+                    l.code, l.name
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n        ")
+    );
+    fs::write(output.join("index.html"), root_index)?;
+    println!("Generated: {}/index.html (language selector)", output.display());
+
+    println!("i18n Build completed successfully.");
+    Ok(())
+}
+
+fn generate_hreflang_tags(languages: &[Language]) -> String {
+    languages
+        .iter()
+        .map(|lang| {
+            format!(
+                r#"<link rel="alternate" hreflang="{}" href="/{}">"#,
+                lang.code, lang.code
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n    ")
+}
+
+fn is_i18n_landing(items: &[(PathBuf, PathBuf, String, String, std::collections::HashMap<String, String>, bool)]) -> bool {
+    items.iter().any(|(rp, _, _, _, _, _)| {
+        rp.to_string_lossy().replace(".md", "") == "landing"
+    })
 }
 
 /// Guess a Content-Type header value from a file extension.
