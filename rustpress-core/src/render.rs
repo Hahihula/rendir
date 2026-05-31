@@ -243,7 +243,11 @@ pub fn render_slideshow_vue(item: &ContentItem) -> String {
     let store_json = serialize_slideshow_store(&store);
 
     let template = SLIDESHOW_TEMPLATE;
-    template.replace("{{STORE_DATA}}", &store_json)
+    let html = template.replace("{{STORE_DATA}}", &store_json);
+    html.replace(
+        "{{LANGUAGE_SELECTOR_SCRIPT}}",
+        &format!("<script>\n{}</script>", SHARED_LANGUAGE_SELECTOR_JS),
+    )
 }
 
 /// Render presenter view using Vue SPA template with embedded store data

@@ -261,6 +261,8 @@ Both **blog** and **mdbook** templates use this same shared search component.
 
 Rustpress supports multi-language sites with automatic language detection and fallback.
 
+> **Note:** mdbook i18n works differently and is not yet supported. Only **blog** and **slideshow** templates support multi-language sites.
+
 ### How It Works
 
 1. **Language Detection** — Languages are automatically detected from subdirectories (e.g., `en/`, `de/`, `cs/`, `zh/`)
@@ -471,7 +473,7 @@ cargo run -p rustpress-cli -- build -i examples/slideshow/content -o /tmp/slides
 # mdbook
 cargo run -p rustpress-cli -- build -i examples/mdbook/content -o /tmp/mdbook -t mdbook
 
-# Multi-language (i18n)
+# Multi-language (i18n) - blog and slideshow templates
 cargo run -p rustpress-cli -- build -i examples/i18n/content -o /tmp/i18n -t blog
 ```
 

@@ -410,26 +410,143 @@ mod tests {
     }
 
     #[test]
-    fn test_translations_include_url() {
+    fn test_nested_paths_in_translations() {
         let temp = tempfile::tempdir().unwrap();
 
         let en_dir = temp.path().join("en");
-        let fr_dir = temp.path().join("fr");
-        std::fs::create_dir(&en_dir).unwrap();
-        std::fs::create_dir(&fr_dir).unwrap();
+        let de_dir = temp.path().join("de");
+        std::fs::create_dir_all(&en_dir.join("posts")).unwrap();
+        std::fs::create_dir_all(&de_dir.join("posts")).unwrap();
 
-        std::fs::write(en_dir.join("about.md"), "# About").unwrap();
-        std::fs::write(fr_dir.join("about.md"), "# À Propos").unwrap();
+        // Need .md files directly in the language dir for detection
+        std::fs::write(en_dir.join("index.md"), "---\ntitle: Home\n---\n# Home").unwrap();
+        std::fs::write(
+            de_dir.join("index.md"),
+            "---\ntitle: Startseite\n---\n# Startseite",
+        )
+        .unwrap();
+
+        std::fs::write(
+            en_dir.join("posts").join("intro.md"),
+            "---\ntitle: Intro\n---\n# Intro",
+        )
+        .unwrap();
+        std::fs::write(
+            de_dir.join("posts").join("intro.md"),
+            "---\ntitle: Einleitung\n---\n# Einleitung",
+        )
+        .unwrap();
 
         let mut builder = I18nBuilder::new("en");
         builder.build_index(temp.path()).unwrap();
 
-        let translations = builder.get_translations("about");
+        assert_eq!(builder.languages().len(), 2);
+
+        let translations = builder.get_translations("posts/intro");
+        assert_eq!(translations.len(), 2);
 
         let en_trans = translations.iter().find(|t| t.language == "en").unwrap();
-        assert!(en_trans.url.contains("/en/about"));
+        assert!(en_trans.exists);
+        assert_eq!(en_trans.title, "Intro");
 
-        let fr_trans = translations.iter().find(|t| t.language == "fr").unwrap();
-        assert!(fr_trans.url.contains("/fr/about"));
+        let de_trans = translations.iter().find(|t| t.language == "de").unwrap();
+        assert!(de_trans.exists);
+        assert_eq!(de_trans.title, "Einleitung");
+    }
+
+    #[test]
+    fn test_detect_languages() {
+        let temp = tempfile::tempdir().unwrap();
+
+        // Create directories with no .md files (should be ignored)
+        let empty_dir = temp.path().join("empty");
+        std::fs::create_dir(&empty_dir).unwrap();
+
+        let en_dir = temp.path().join("en");
+        std::fs::create_dir(&en_dir).unwrap();
+        std::fs::write(en_dir.join("index.md"), "# Index").unwrap();
+
+        let de_dir = temp.path().join("de");
+        std::fs::create_dir(&de_dir).unwrap();
+        std::fs::write(de_dir.join("index.md"), "# Index").unwrap();
+
+        let languages = I18nBuilder::detect_languages(temp.path());
+
+        assert_eq!(languages.len(), 2);
+        let lang_codes: Vec<&str> = languages.iter().map(|l| l.code.as_str()).collect();
+        assert!(lang_codes.contains(&"en"));
+        assert!(lang_codes.contains(&"de"));
+    }
+
+    #[test]
+    fn test_detect_languages_ignores_empty_dirs() {
+        let temp = tempfile::tempdir().unwrap();
+
+        // Empty directory (no .md files) should be ignored
+        let empty_dir = temp.path().join("empty");
+        std::fs::create_dir(&empty_dir).unwrap();
+
+        // Directory with only .txt file should be ignored
+        let txt_dir = temp.path().join("txt_only");
+        std::fs::create_dir(&txt_dir).unwrap();
+        std::fs::write(txt_dir.join("readme.txt"), "Just text").unwrap();
+
+        // Directory with .md file should be detected
+        let en_dir = temp.path().join("en");
+        std::fs::create_dir(&en_dir).unwrap();
+        std::fs::write(en_dir.join("index.md"), "# Index").unwrap();
+
+        let languages = I18nBuilder::detect_languages(temp.path());
+
+        assert_eq!(languages.len(), 1);
+        assert_eq!(languages[0].code, "en");
+    }
+
+    #[test]
+    fn test_fallback_content_returns_title_from_frontmatter() {
+        let temp = tempfile::tempdir().unwrap();
+
+        let en_dir = temp.path().join("en");
+        std::fs::create_dir(&en_dir).unwrap();
+
+        std::fs::write(
+            en_dir.join("about.md"),
+            "---\ntitle: My Custom Title\n---\n# About Content",
+        )
+        .unwrap();
+
+        let mut builder = I18nBuilder::new("en");
+        builder.build_index(temp.path()).unwrap();
+
+        let fallback = builder.get_fallback_content("about");
+        assert!(fallback.is_some());
+        let (title, _) = fallback.unwrap();
+        assert_eq!(title, "My Custom Title");
+    }
+
+    #[test]
+    fn test_english_is_default_language() {
+        let temp = tempfile::tempdir().unwrap();
+
+        let en_dir = temp.path().join("en");
+        let de_dir = temp.path().join("de");
+        let fr_dir = temp.path().join("fr");
+        std::fs::create_dir(&en_dir).unwrap();
+        std::fs::create_dir(&de_dir).unwrap();
+        std::fs::create_dir(&fr_dir).unwrap();
+
+        std::fs::write(en_dir.join("index.md"), "# Index").unwrap();
+        std::fs::write(de_dir.join("index.md"), "# Index").unwrap();
+        std::fs::write(fr_dir.join("index.md"), "# Index").unwrap();
+
+        let languages = I18nBuilder::detect_languages(temp.path());
+
+        // English should be marked as default
+        let en_lang = languages.iter().find(|l| l.code == "en").unwrap();
+        assert!(en_lang.is_default);
+
+        // Others should not be default
+        let de_lang = languages.iter().find(|l| l.code == "de").unwrap();
+        assert!(!de_lang.is_default);
     }
 }
