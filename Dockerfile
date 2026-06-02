@@ -7,10 +7,10 @@ RUN rustup default stable
 WORKDIR /build
 
 COPY Cargo.toml Cargo.lock* ./
-COPY rustpress-cli ./rustpress-cli
+COPY rustpress ./rustpress
 COPY rustpress-core ./rustpress-core
 
-RUN cargo build --release --package rustpress-cli
+RUN cargo build --release --package rustpress
 
 FROM alpine:3.19
 

@@ -1,5 +1,5 @@
 [workspace]
-members = [ "rustpress-cli","rustpress-core", "rustpress-wasm"]
+members = [ "rustpress", "rustpress-core", "rustpress-wasm"]
 resolver = "3"
 
 [workspace.dependencies]

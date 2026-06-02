@@ -143,13 +143,13 @@ Click the **"Present"** link (top-right) to open presenter view. Presenter view 
 
 ```bash
 # Build a slideshow
-cargo run -p rustpress-cli -- build \
+cargo run -p rustpress -- build \
   --input examples/slideshow/content/ \
   --output site/ \
   --template slideshow
 
 # Single file conversion
-cargo run -p rustpress-cli -- convert \
+cargo run -p rustpress -- convert \
   --input examples/slideshow/content/presentation.md \
   --output /tmp/presentation.html \
   --template slideshow

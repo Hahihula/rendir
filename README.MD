@@ -51,7 +51,7 @@ cd rustpress
 cargo build --release
 
 # Install the CLI tool (optional)
-cargo install --path rustpress-cli
+cargo install --path rustpress
 ```
 
 ## Usage
@@ -63,7 +63,7 @@ The CLI provides three main commands: `convert` for single files, `build` for si
 #### Build a Blog
 
 ```bash
-cargo run -p rustpress-cli -- build \
+cargo run -p rustpress -- build \
   --input examples/blog/content/ \
   --output /tmp/blog/ \
   --template blog
@@ -72,7 +72,7 @@ cargo run -p rustpress-cli -- build \
 #### Build a Slideshow
 
 ```bash
-cargo run -p rustpress-cli -- build \
+cargo run -p rustpress -- build \
   --input examples/slideshow/content/ \
   --output /tmp/slideshow/ \
   --template slideshow
@@ -81,7 +81,7 @@ cargo run -p rustpress-cli -- build \
 #### Build an mdbook Project
 
 ```bash
-cargo run -p rustpress-cli -- build \
+cargo run -p rustpress -- build \
   --input examples/mdbook/content/ \
   --output /tmp/mdbook/ \
   --template mdbook
@@ -102,7 +102,7 @@ rustpress convert --input example.md --output example.html --template slideshow
 The `dev` command starts a development server with automatic rebuilding and live reload:
 
 ```bash
-cargo run -p rustpress-cli -- dev \
+cargo run -p rustpress -- dev \
   --input examples/blog/content/ \
   --output /tmp/blog/ \
   --template blog
@@ -298,7 +298,7 @@ content/
 The build command automatically detects i18n structure:
 
 ```bash
-cargo run -p rustpress-cli -- build \
+cargo run -p rustpress -- build \
   --input examples/i18n/content/ \
   --output /tmp/i18n-site/ \
   --template blog
@@ -419,7 +419,7 @@ rustpress/
 │           ├── slideshow/   # Slideshow Vue SPA templates
 │           ├── mdbook/      # mdbook Vue SPA template
 │           └── shared/      # Shared components (search.js, language-selector.js)
-├── rustpress-cli/       # CLI application
+├── rustpress/       # CLI application
 ├── rustpress-wasm/      # WASM bindings
 └── examples/            # Example projects
     ├── blog/            # Blog example
@@ -462,19 +462,19 @@ Each template has a working example in `examples/`:
 
 ```bash
 # Blog
-cargo run -p rustpress-cli -- build -i examples/blog/content -o /tmp/blog -t blog
+cargo run -p rustpress -- build -i examples/blog/content -o /tmp/blog -t blog
 
 # Blog with live reload
-cargo run -p rustpress-cli -- dev -i examples/blog/content -o /tmp/blog -t blog
+cargo run -p rustpress -- dev -i examples/blog/content -o /tmp/blog -t blog
 
 # Slideshow
-cargo run -p rustpress-cli -- build -i examples/slideshow/content -o /tmp/slideshow -t slideshow
+cargo run -p rustpress -- build -i examples/slideshow/content -o /tmp/slideshow -t slideshow
 
 # mdbook
-cargo run -p rustpress-cli -- build -i examples/mdbook/content -o /tmp/mdbook -t mdbook
+cargo run -p rustpress -- build -i examples/mdbook/content -o /tmp/mdbook -t mdbook
 
 # Multi-language (i18n) - blog and slideshow templates
-cargo run -p rustpress-cli -- build -i examples/i18n/content -o /tmp/i18n -t blog
+cargo run -p rustpress -- build -i examples/i18n/content -o /tmp/i18n -t blog
 ```
 
 ## License

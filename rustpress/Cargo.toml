@@ -1,0 +1,32 @@
+[package]
+name = "rustpress"
+version = "0.1.0"
+edition = "2024"
+description = "A flexible static site generator that converts Markdown into Vue 3 single-page applications"
+license = "MIT"
+repository = "https://gitlab.com/hahihula/rustpress"
+homepage = "https://gitlab.com/hahihula/rustpress"
+readme = "../README.MD"
+keywords = ["static-site-generator", "ssg", "markdown", "vue", "blog"]
+categories = ["command-line-utilities", "development-tools", "web-programming"]
+exclude = [
+    "/.github",
+    "/.gitlab",
+    "/examples",
+    "/target",
+]
+
+[dependencies]
+rustpress-core = { path = "../rustpress-core" }
+clap = { version = "4.0", features = ["derive"] }
+anyhow = { workspace = true }
+walkdir = "2.3"
+serde_json = "1.0"
+notify = { version = "6.1", default-features = false, features = ["macos_kqueue"] }
+tiny_http = "0.12"
+parking_lot = "0.12"
+reqwest = { version = "0.12", features = ["blocking"] }
+
+[dev-dependencies]
+assert_cmd = "2.0"
+tempfile = "3.8"

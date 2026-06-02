@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
   tags:
     - '**'
 
@@ -32,7 +32,7 @@ jobs:
         run: cargo build --verbose
 
       - name: Build release
-        run: cargo build --release --package rustpress-cli
+        run: cargo build --release --package rustpress
 
       - name: Run tests
         run: cargo test --verbose
@@ -45,7 +45,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rustpress-cli
+          name: rustpress
           path: target/release/rustpress
 
   lint:
@@ -74,7 +74,7 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: rustpress-cli
+          name: rustpress
           path: target/release/
 
       - name: Make executable

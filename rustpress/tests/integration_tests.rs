@@ -219,7 +219,7 @@ title: "Vítejte"
     )
     .unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")
@@ -269,7 +269,7 @@ fn test_i18n_build_detects_all_languages() {
         .unwrap();
     }
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")
@@ -324,7 +324,7 @@ title: "Mein Blog"
     )
     .unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")
@@ -369,7 +369,7 @@ This is a test.
     )
     .unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("convert")
         .arg("--input")
@@ -402,7 +402,7 @@ title: "Test Post"
     )
     .unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("convert")
         .arg("--input")
@@ -422,7 +422,7 @@ fn test_convert_nonexistent_input() {
     let temp_dir = TempDir::new().unwrap();
     let output_path = temp_dir.path().join("output.html");
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("convert")
         .arg("--input")
@@ -453,7 +453,7 @@ template: blog-landing
     )
     .unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")
@@ -473,7 +473,7 @@ fn test_build_nonexistent_directory() {
     let temp_dir = TempDir::new().unwrap();
     let output_dir = temp_dir.path().join("output");
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")
@@ -486,7 +486,7 @@ fn test_build_nonexistent_directory() {
 
 #[test]
 fn test_help_flag() {
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("--help")
         .assert()
@@ -495,7 +495,7 @@ fn test_help_flag() {
 
 #[test]
 fn test_convert_help() {
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("convert")
         .arg("--help")
@@ -505,7 +505,7 @@ fn test_convert_help() {
 
 #[test]
 fn test_build_help() {
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--help")
@@ -541,7 +541,7 @@ Some text with ![Icon](images/icon.png) inline.
     fs::write(images_dir.join("logo.png"), "PNG_DATA").unwrap();
     fs::write(images_dir.join("icon.png"), "PNG_DATA").unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")
@@ -582,7 +582,7 @@ title: "Test Page"
 
     fs::write(docs_dir.join("guide.pdf"), "PDF_DATA").unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")
@@ -617,7 +617,7 @@ title: "Test Page"
     )
     .unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")
@@ -653,7 +653,7 @@ title: "Test Post"
 
     fs::write(images_dir.join("logo.png"), "PNG_DATA").unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("convert")
         .arg("--input")
@@ -699,7 +699,7 @@ title: "Chapter 1"
 
     fs::write(images_dir.join("diagram.png"), "PNG_DATA").unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")
@@ -737,7 +737,7 @@ title: "Test Page"
     )
     .unwrap();
 
-    Command::cargo_bin("rustpress-cli")
+    Command::cargo_bin("rustpress")
         .unwrap()
         .arg("build")
         .arg("--input")

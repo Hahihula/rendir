@@ -64,13 +64,13 @@ Run the CLI from the project root:
 
 ```bash
 # Build slideshow
-cargo run -p rustpress-cli -- build \
+cargo run -p rustpress -- build \
   --input examples/slideshow/content/presentation.md \
   --output /tmp/rustpress-output/ \
   --template slideshow
 
 # Convert with custom template
-cargo run -p rustpress-cli -- convert \
+cargo run -p rustpress -- convert \
   --input examples/slideshow/content/presentation.md \
   --output /tmp/presentation.html \
   --template slideshow
