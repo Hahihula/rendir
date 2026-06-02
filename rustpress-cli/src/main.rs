@@ -319,11 +319,10 @@ fn build_all_chapter_stores(chapters: &[Chapter], all_items: &[SiteItem]) -> Vec
     let all = get_all_chapters(chapters);
     let all_refs: Vec<&Chapter> = all.to_vec();
 
-    chapters
-        .iter()
+    // Build stores for ALL chapters (including nested ones) by flattening first
+    all.iter()
         .enumerate()
-        .map(|(i, ch)| {
-            let idx = all.iter().position(|c| c.path == ch.path).unwrap_or(i);
+        .map(|(idx, ch)| {
             let content = all_items
                 .iter()
                 .find(|item| item.rel_path_str().replace("src/", "") == ch.path.to_string_lossy().replace(".md", "").replace("src/", ""))
@@ -442,23 +441,42 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
         .exists()
         .then(|| BookToml::from_path(&input.join("book.toml")).unwrap_or_default());
 
-    let summary = input
+    let src_dir_from_config = book_toml
+        .as_ref()
+        .and_then(|b| {
+            let src = b.book.src.as_str();
+            // Empty string or "src" means default src directory
+            if src.is_empty() || src == "src" {
+                None
+            } else {
+                Some(input.join(src))
+            }
+        })
+        .filter(|p| p.exists());
+
+    // Default src directory is "src" relative to input
+    let default_src = input.join("src");
+    let src_dir = src_dir_from_config.unwrap_or_else(|| {
+        if default_src.exists() {
+            default_src
+        } else {
+            input.to_path_buf()
+        }
+    });
+
+    std::fs::write("/tmp/src_dir_debug.txt", format!(
+        "input='{}', book_toml_src='{:?}', src_dir='{}', SUMMARY exists={}\n",
+        input.display(),
+        book_toml.as_ref().map(|b| b.book.src.as_str()),
+        src_dir.display(),
+        src_dir.join("SUMMARY.md").exists()
+    )).ok();
+
+    let summary = src_dir
         .join("SUMMARY.md")
         .exists()
-        .then(|| Summary::from_path(&input.join("SUMMARY.md")))
+        .then(|| Summary::from_path(&src_dir.join("SUMMARY.md")))
         .flatten();
-
-    let src_dir = input.join(
-        book_toml
-            .as_ref()
-            .map(|b| b.book.src.as_str())
-            .unwrap_or("src"),
-    );
-    let src_dir = if src_dir.exists() {
-        src_dir
-    } else {
-        input.to_path_buf()
-    };
 
     let detected_languages = I18nBuilder::detect_languages(&src_dir);
     let is_i18n = detected_languages.len() > 1;
@@ -513,8 +531,19 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
 
     // Build ChapterStore data for Vue SPA (mdbook template)
     let chapter_stores: Vec<ChapterStore> = if let Some(ref summary) = summary {
-        build_all_chapter_stores(&summary.chapters, &all_items)
+        let stores = build_all_chapter_stores(&summary.chapters, &all_items);
+        std::fs::write("/tmp/chapters_build.txt", format!(
+            "HAS SUMMARY - Summary chapters: {}, Built {} stores, Items: {}\n",
+            summary.chapters.len(),
+            stores.len(),
+            all_items.len()
+        )).ok();
+        stores
     } else {
+        std::fs::write("/tmp/chapters_build.txt", format!(
+            "NO SUMMARY - all_items: {}\n",
+            all_items.len()
+        )).ok();
         Vec::new()
     };
     let search_index = if search_index_len > 0 {
@@ -622,17 +651,29 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                 render_blog_index_vue(&landing_page_store)
             } else if is_mdbook {
                 let all_chapters_flat = flatten_chapter_stores(&chapter_stores);
-                let current_store = all_chapters_flat
+                std::fs::write("/tmp/mdbook_render.txt", format!(
+                    "MDbook render - rel_path_str='{}', chapter_stores len={}, all_chapters_flat len={}\n",
+                    rel_path_str, chapter_stores.len(), all_chapters_flat.len()
+                )).ok();
+                let matching = all_chapters_flat
                     .iter()
-                    .find(|ch| {
+                    .filter(|ch| {
                         ch.url.contains(&rel_path_str)
                             || rel_path_str.ends_with(&ch.url.replace(".html", ""))
                     })
-                    .cloned();
+                    .collect::<Vec<_>>();
+                if matching.is_empty() && rel_path_str.contains("SUMMARY") {
+                    std::fs::write("/tmp/chapters_match.txt", format!(
+                        "NO MATCH for '{}'\nAll chapters:\n{}\n",
+                        rel_path_str,
+                        all_chapters_flat.iter().map(|c| format!("  {}: {}", c.url, c.title)).collect::<Vec<_>>().join("\n")
+                    )).ok();
+                }
+                let current_store = matching.into_iter().next().cloned();
                 if let Some(current) = current_store {
                     render_mdbook_vue(&book_title, &chapter_stores, &current, &search_index)
                 } else {
-                    render_with_template(
+                    let fallback_html = render_with_template(
                         &ContentItem {
                             path: None,
                             content: String::new(),
@@ -647,7 +688,8 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                         },
                         template_to_use,
                         get_builtin_template(template_to_use).unwrap_or_default(),
-                    )
+                    );
+                    fallback_html
                 }
             } else if let Some(template_content) = get_builtin_template(template_to_use) {
                 let mut metadata = item.metadata.clone();
