@@ -1,271 +1,880 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rustpress WASM Playground</title>
+  <title>Rustpress Playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 1rem;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base: #0d0d0f;
+      --bg-surface: #141418;
+      --bg-elevated: #1c1c22;
+      --bg-input: #111115;
+      --border-subtle: rgba(255,255,255,0.07);
+      --border-mid: rgba(255,255,255,0.13);
+      --border-accent: rgba(255,255,255,0.22);
+      --text-primary: #f0ede8;
+      --text-secondary: #9997a0;
+      --text-muted: #55535d;
+      --accent: #e8704a;
+      --accent-dim: rgba(232,112,74,0.12);
+      --accent-glow: rgba(232,112,74,0.25);
+      --green: #4aad7e;
+      --green-dim: rgba(74,173,126,0.12);
+      --blue: #5a9cf5;
+      --blue-dim: rgba(90,156,245,0.12);
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'DM Sans', sans-serif;
+      --font-serif: 'Instrument Serif', serif;
     }
-    h1 { border-bottom: 1px solid #ddd; padding-bottom: 0.5rem; margin-bottom: 1rem; }
-    .tabs { display: flex; gap: 0; margin-bottom: 1rem; border-bottom: 2px solid #e2e8f0; }
-    .tab-btn {
-      padding: 0.6rem 1.4rem;
-      border: none;
-      background: none;
-      cursor: pointer;
-      font-size: 0.95rem;
-      color: #666;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
-      transition: all 0.2s;
+
+    html, body { height: 100%; max-width: none !important; width: 100% !important; margin: 0 !important; background: var(--bg-base); color: var(--text-primary); font-family: var(--font-sans); }
+
+    #app { display: flex; flex-direction: column; height: 100vh; width: 100%; max-width: none !important; overflow: hidden; }
+
+    /* ─── Header ─── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 0 1.5rem;
+      height: 56px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
     }
-    .tab-btn:hover { color: #4299e1; }
-    .tab-btn.active { color: #2b6cb0; border-bottom-color: #4299e1; font-weight: 600; }
-    .controls { margin-bottom: 1rem; display: flex; gap: 0.5rem; align-items: center; }
-    .controls button {
-      background-color: #4299e1;
-      color: white;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9rem;
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      text-decoration: none;
     }
-    .controls button:hover { background-color: #3182ce; }
-    .controls button.secondary { background-color: #718096; }
-    .controls button.secondary:hover { background-color: #4a5568; }
-    .controls span { color: #888; font-size: 0.85rem; margin-left: auto; }
-    .container { display: flex; gap: 20px; height: calc(100vh - 200px); }
-    .editor, .preview { flex: 1; border: 1px solid #ddd; border-radius: 4px; overflow: auto; }
-    .editor { display: flex; flex-direction: column; }
-    .editor-label {
-      padding: 8px 12px;
-      background: #f7fafc;
-      border-bottom: 1px solid #ddd;
-      font-size: 0.8rem;
-      color: #888;
-      text-transform: uppercase;
+
+    .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 13px; font-weight: 600;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      color: var(--text-primary);
+      font-style: italic;
+    }
+
+    .logo-badge {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid rgba(232,112,74,0.3);
+      padding: 2px 7px;
+      border-radius: 20px;
       letter-spacing: 0.5px;
     }
-    textarea {
-      width: 100%;
-      flex: 1;
-      padding: 1rem;
-      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-      font-size: 0.9rem;
-      border: none;
-      resize: none;
+
+    .header-sep { flex: 1; }
+
+    .mode-tabs {
+      display: flex;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 2px;
     }
-    textarea:focus { outline: none; }
-    .preview { padding: 1rem; }
-    .alert { padding: 15px; border-radius: 4px; margin-bottom: 20px; }
-    .alert-info { background-color: #e3f2fd; border-left: 5px solid #2196F3; }
-    .alert-warning { background-color: #fff9c4; border-left: 5px solid #ffc107; }
-    .alert-error { background-color: #ffebee; border-left: 5px solid #f44336; }
-    .tabs-container { margin: 20px 0; }
-    .tabs-header { display: flex; border-bottom: 1px solid #ddd; }
-    .tab-btn-head { padding: 10px 15px; border: none; background: none; cursor: pointer; }
-    .tab-btn-head.active { border-bottom: 2px solid #2196F3; }
-    .tab-pane { display: none; padding: 15px 0; }
-    .tab-pane.active { display: block; }
-    pre { background: #f4f4f4; padding: 15px; border-radius: 4px; overflow-x: auto; }
-    code { background: #f4f4f4; padding: 0.2rem 0.4rem; border-radius: 3px; font-family: 'Fira Code', Consolas, monospace; font-size: 0.9rem; }
-    pre code { background: none; padding: 0; }
-    img { max-width: 100%; }
+
+    .mode-tab {
+      padding: 5px 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.18s;
+      letter-spacing: 0.3px;
+    }
+
+    .mode-tab:hover { color: var(--text-primary); }
+
+    .mode-tab.active {
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--border-mid);
+    }
+
+    .header-actions { display: flex; gap: 0.5rem; align-items: center; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px;
+      border-radius: 7px;
+      font-family: var(--font-sans);
+      font-size: 13px; font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+    }
+    .btn-ghost:hover { color: var(--text-primary); border-color: var(--border-mid); background: var(--bg-elevated); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #f07a56; }
+    .btn-primary:active { transform: scale(0.98); }
+
+    .btn-green {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(74,173,126,0.25);
+    }
+    .btn-green:hover { background: rgba(74,173,126,0.2); }
+
+    .btn-blue {
+      background: var(--blue-dim);
+      color: var(--blue);
+      border: 1px solid rgba(90,156,245,0.25);
+    }
+    .btn-blue:hover { background: rgba(90,156,245,0.2); }
+
+    .btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    /* ─── Toolbar ─── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 1.5rem;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+    }
+
+    .toolbar-status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+    }
+    .status-dot.idle { background: var(--text-muted); box-shadow: none; }
+    .status-dot.loading {
+      background: var(--accent);
+      animation: pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .toolbar-sep { flex: 1; }
+
+    .slide-actions {
+      display: flex; gap: 0.5rem;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ─── Main layout ─── */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ─── Editor pane ─── */
+    .editor-pane {
+      display: flex;
+      flex-direction: column;
+      width: 32%;
+      min-width: 200px;
+      border-right: 1px solid var(--border-subtle);
+      background: var(--bg-input);
+      flex-shrink: 0;
+    }
+
+    .pane-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 1rem;
+      height: 36px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+    }
+
+    .pane-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .line-count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .editor-wrap { position: relative; flex: 1; overflow: hidden; }
+
+    .editor-nums {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      width: 40px;
+      padding: 1rem 0;
+      overflow: hidden;
+      pointer-events: none;
+      border-right: 1px solid var(--border-subtle);
+      background: rgba(0,0,0,0.15);
+    }
+
+    .line-num {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: right;
+      padding-right: 8px;
+      line-height: 1.7;
+      height: 20.4px;
+    }
+
+    textarea.editor {
+      position: absolute; inset: 0;
+      padding: 1rem 1rem 1rem 52px;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.7;
+      resize: none;
+      width: 100%;
+      height: 100%;
+      outline: none;
+      caret-color: var(--accent);
+      tab-size: 2;
+    }
+
+    textarea.editor::selection { background: rgba(232,112,74,0.25); }
+
+    /* ─── Preview pane ─── */
+    .preview-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg-base);
+    }
+
+    .preview-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 2rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-mid) transparent;
+    }
+
+    .preview-scroll::-webkit-scrollbar { width: 6px; }
+    .preview-scroll::-webkit-scrollbar-track { background: transparent; }
+    .preview-scroll::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+
+    /* Preview prose styles */
+    .preview-scroll h1 { font-family: var(--font-serif); font-size: 2rem; font-weight: 400; font-style: italic; margin-bottom: 1rem; color: var(--text-primary); }
+    .preview-scroll h2 { font-size: 1.3rem; font-weight: 500; margin: 1.5rem 0 0.75rem; color: var(--text-primary); }
+    .preview-scroll h3 { font-size: 1.1rem; font-weight: 500; margin: 1.25rem 0 0.5rem; color: var(--text-primary); }
+    .preview-scroll p { margin-bottom: 1rem; line-height: 1.75; color: var(--text-primary); }
+    .preview-scroll ul, .preview-scroll ol { margin: 0.5rem 0 1rem 1.25rem; }
+    .preview-scroll li { margin-bottom: 0.35rem; line-height: 1.65; color: var(--text-primary); }
+    .preview-scroll code { font-family: var(--font-mono); font-size: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); padding: 1px 6px; border-radius: 4px; color: var(--accent); }
+    .preview-scroll pre { background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 1rem 0; }
+    .preview-scroll pre code { background: none; border: none; padding: 0; color: var(--text-primary); font-size: 12px; }
+    .preview-scroll table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    .preview-scroll th { text-align: left; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); padding: 8px 12px; border-bottom: 1px solid var(--border-mid); }
+    .preview-scroll td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); font-size: 14px; }
+    .preview-scroll blockquote { border-left: 3px solid var(--accent); padding-left: 1rem; margin: 1rem 0; color: var(--text-secondary); }
+    .preview-scroll a { color: var(--accent); text-decoration: none; }
+    .preview-scroll a:hover { text-decoration: underline; }
+    .preview-scroll hr { border: none; border-top: 1px solid var(--border-subtle); margin: 1.5rem 0; }
+    .preview-scroll strong { font-weight: 600; }
+    .preview-scroll em { font-style: italic; color: var(--text-secondary); }
+
+    /* Alert component styles */
+    .preview-scroll .alert { border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; }
+    .preview-scroll .alert-info { background: var(--blue-dim); border-left: 3px solid var(--blue); }
+    .preview-scroll .alert-warning { background: rgba(218,160,60,0.1); border-left: 3px solid #daA03c; }
+    .preview-scroll .alert-error { background: rgba(220,80,80,0.1); border-left: 3px solid #dc5050; }
+
+    /* Slide iframe */
+    .slide-iframe-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .slide-iframe-wrap iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+
+    /* ─── Empty state ─── */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      gap: 0.5rem;
+    }
+    .empty-state svg { width: 40px; height: 40px; opacity: 0.25; }
+    .empty-state p { font-size: 14px; }
+
+    /* ─── Resizer ─── */
+    .resizer {
+      width: 4px;
+      background: var(--border-subtle);
+      cursor: col-resize;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .resizer:hover, .resizer.dragging { background: var(--accent); }
+
+    /* ─── Error toast ─── */
+    .error-bar {
+      background: rgba(220,80,80,0.15);
+      border: 1px solid rgba(220,80,80,0.3);
+      border-radius: 6px;
+      padding: 0.6rem 1rem;
+      margin: 1rem;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #e07070;
+    }
+
+    /* ─── Fullscreen modal ─── */
+    .fullscreen-modal {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #000;
+      display: flex; flex-direction: column;
+    }
+
+    .fullscreen-bar {
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      position: absolute; top: 0; left: 0; right: 0;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .fullscreen-modal:hover .fullscreen-bar { opacity: 1; }
+
+    .fullscreen-modal iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+
+    /* ─── Loading overlay ─── */
+    .loading-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg-base);
+      z-index: 10;
+    }
+
+    .loading-spinner {
+      width: 32px; height: 32px;
+      border: 2px solid var(--border-subtle);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 768px) {
+      .main { flex-direction: column; }
+      .editor-pane { width: 100%; height: 45vh; border-right: none; border-bottom: 1px solid var(--border-subtle); }
+      .resizer { display: none; }
+      .header { padding: 0 1rem; }
+      .header .logo-text, .header .logo-badge { display: none; }
+      .mode-tab { padding: 5px 10px; }
+      .toolbar { padding: 0.5rem 1rem; overflow-x: auto; }
+      .toolbar-status { display: none; }
+      .preview-scroll { padding: 1rem; }
+    }
+
+    /* Transition */
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
   </style>
 </head>
 <body>
-  <h1>Rustpress WASM Playground</h1>
+<div id="app">
 
-  <div class="tabs" id="modeTabs">
-    <button class="tab-btn active" data-tab="basic">Basic Usage</button>
-    <button class="tab-btn" data-tab="slideshow">Slideshow</button>
-  </div>
-
-  <div class="controls">
-    <button id="render-btn">Render</button>
-    <button id="reset-btn" class="secondary">Reset to Example</button>
-    <span id="mode-indicator">Basic markdown → HTML</span>
-  </div>
-
-  <div class="container">
-    <div class="editor">
-      <div class="editor-label">Markdown Input</div>
-      <textarea id="markdown-editor" spellcheck="false"></textarea>
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <div class="logo-mark">RP</div>
+      <span class="logo-text">Rustpress</span>
+      <span class="logo-badge">WASM</span>
     </div>
-    <div class="preview" id="preview">
-      <p style="color:#999">Click <strong>Render</strong> or edit the markdown to see results.</p>
+
+    <div class="mode-tabs">
+      <button
+        v-for="tab in tabs"
+        :key="tab.id"
+        class="mode-tab"
+        :class="{ active: currentMode === tab.id }"
+        @click="switchMode(tab.id)"
+      >{{ tab.label }}</button>
+    </div>
+
+    <div class="header-sep"></div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" @click="resetExample" title="Reset to example">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset
+      </button>
+      <button class="btn btn-primary" @click="renderNow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Render
+      </button>
+    </div>
+  </header>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-status">
+      <div class="status-dot" :class="statusClass"></div>
+      {{ statusText }}
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <transition name="fade">
+      <div class="slide-actions" v-if="currentMode === 'slideshow' && slideshowHtml">
+        <button class="btn btn-green" @click="presentFullscreen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          Present
+        </button>
+        <button class="btn btn-blue" @click="downloadSlideshow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </button>
+      </div>
+    </transition>
+  </div>
+
+  <!-- Main workspace -->
+  <div class="main" ref="mainEl">
+
+    <!-- Editor -->
+    <div class="editor-pane" :style="{ width: editorWidth + 'px' }" ref="editorPane">
+      <div class="pane-header">
+        <span class="pane-label">Markdown</span>
+        <span class="line-count">{{ lineCount }} lines</span>
+      </div>
+      <div class="editor-wrap">
+        <div class="editor-nums" ref="lineNums">
+          <div class="line-num" v-for="n in lineCount" :key="n">{{ n }}</div>
+        </div>
+        <textarea
+          class="editor"
+          ref="editorEl"
+          v-model="markdownInput"
+          spellcheck="false"
+          @scroll="syncScroll"
+          @input="onEditorInput"
+          @keydown.tab.prevent="insertTab"
+          placeholder="Write Markdown here…"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Resizer -->
+    <div
+      class="resizer"
+      :class="{ dragging: isResizing }"
+      @mousedown="startResize"
+    ></div>
+
+    <!-- Preview -->
+    <div class="preview-pane" ref="previewPane">
+      <div class="pane-header">
+        <span class="pane-label">Preview</span>
+        <span class="line-count" v-if="currentMode === 'slideshow' && slideshowHtml">Vue SPA</span>
+        <span class="line-count" v-else>HTML</span>
+      </div>
+
+      <div v-if="!wasmReady" class="loading-overlay">
+        <div class="loading-spinner"></div>
+      </div>
+
+      <!-- Basic mode -->
+      <div
+        v-if="currentMode === 'basic'"
+        class="preview-scroll"
+        ref="previewScroll"
+      >
+        <div v-if="errorMsg" class="error-bar">{{ errorMsg }}</div>
+        <div v-else-if="renderedHtml" v-html="renderedHtml"></div>
+        <div v-else class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 8h10M7 12h6M7 16h8"/></svg>
+          <p>Start typing to see a preview</p>
+        </div>
+      </div>
+
+      <!-- Slideshow mode -->
+      <div v-if="currentMode === 'slideshow'" class="slide-iframe-wrap">
+        <div v-if="errorMsg" class="error-bar" style="margin:1rem">{{ errorMsg }}</div>
+        <iframe
+          v-show="slideshowHtml"
+          ref="slideshowFrame"
+          sandbox="allow-scripts"
+        ></iframe>
+        <div v-show="!slideshowHtml && !errorMsg" class="empty-state" style="flex:1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
+          <p>Render to preview your slideshow</p>
+        </div>
+      </div>
     </div>
   </div>
-  <script type="module">
-    import init, { Rustpress } from './rustpress_wasm.js';
 
-    let rustpress;
-    let currentMode = 'basic';
+  <!-- Fullscreen modal -->
+  <transition name="fade">
+    <div class="fullscreen-modal" v-if="fullscreenOpen" @keydown.esc="closeFullscreen" tabindex="0" ref="fullscreenModal">
+      <div class="fullscreen-bar">
+        <span style="font-family:var(--font-mono);font-size:12px;color:rgba(255,255,255,0.4);flex:1">Presentation Mode — press Esc or use the button to exit</span>
+        <button class="btn btn-blue" @click="downloadSlideshow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
+        </button>
+        <button class="btn btn-ghost" @click="closeFullscreen" style="color:rgba(255,255,255,0.6);border-color:rgba(255,255,255,0.15)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Exit
+        </button>
+      </div>
+      <iframe
+        ref="fullscreenFrame"
+        sandbox="allow-scripts"
+        style="flex:1;width:100%;border:none"
+      ></iframe>
+    </div>
+  </transition>
 
-    const basicExample = [
-      '# Welcome to Rustpress!',
-      '',
-      'This is a demo of the Rustpress static site generator.',
-      '',
-      '## Features',
-      '',
-      '- Markdown support',
-      '- Custom components',
-      '- Template system',
-      '',
-      '## Custom Components',
-      '',
-      'You can use custom components like this:',
-      '',
-      '<Alert type="info" title="Information">',
-      '    This is an informational alert.',
-      '</Alert>',
-      '',
-      'Or using the special markdown syntax:',
-      '',
-      ':::alert{type="warning" title="Warning"}',
-      'This is a warning alert.',
-      ':::',
-      '',
-      '## Tables',
-      '',
-      '| Feature | Status |',
-      '|---------|--------|',
-      '| Markdown | ✅ |',
-      '| Components | ✅ |',
-      '| WASM | ✅ |',
-      '',
-      '## Code Blocks',
-      '',
-      '```rust',
-      'fn main() {',
-      '    println!("Hello, Rustpress!");',
-      '}',
-      '```'
-    ].join('\n');
+</div>
 
-    const slideshowExample = [
-      '---',
-      'title: "My WASM Presentation"',
-      'author: "Rustpress"',
-      '---',
-      '',
-      '<Slide title="Welcome">',
-      '# Rustpress + WASM',
-      '',
-      'This slideshow is rendered entirely in the browser via WebAssembly!',
-      '',
-      '- **Zero server** required',
-      '- **Reactive** Vue.js frontend',
-      '- **Fast** pre-built search',
-      '</Slide>',
-      '',
-      '<Slide title="Features" type="split-left">',
-      '## What can you do?',
-      '',
-      '- Create static sites',
-      '- Build presentations',
-      '- Generate documentation',
-      '- Searchable content',
-      '</Slide>',
-      '',
-      '<Slide title="Code Example">',
-      '## Embedded Code',
-      '',
-      '```rust',
-      'fn greet(name: &str) -> String {',
-      '    format!("Hello, {}!", name)',
-      '}',
-      '```',
-      '',
-      '> This slide shows a code block inside a slide.',
-      '</Slide>',
-      '',
-      '<Slide title="Thank You" type="center">',
-      '# Thank You!',
-      '',
-      'Built with Rust + Vue.js',
-      '',
-      '[Get Started](https://github.com)',
-      '</Slide>'
-    ].join('\n');
+<script type="module">
+import init, { Rustpress } from './rustpress_wasm.js';
 
-    const EXAMPLES = {
-      basic: basicExample,
-      slideshow: slideshowExample
-    };
+const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
-    async function initRustpress() {
-      await init();
-      rustpress = new Rustpress();
-      loadExample();
-    }
+const BASIC_EXAMPLE = `# Welcome to Rustpress
 
-    function renderMarkdown() {
-      if (!rustpress) return;
-      const editor = document.getElementById('markdown-editor');
-      const preview = document.getElementById('preview');
+A fast static site generator built in Rust, running right here in your browser via WebAssembly.
 
+## Custom Components
+
+<Alert type="info" title="Did you know?">
+Rustpress components work inside the WASM playground too. Try editing this!
+</Alert>
+
+:::alert{type="warning" title="Heads up"}
+You can use either HTML-like or special markdown syntax for components.
+:::
+
+## Markdown Support
+
+Write **bold**, *italic*, or \`inline code\` with ease.
+
+| Feature      | Status |
+|--------------|--------|
+| Markdown     | ✅     |
+| Components   | ✅     |
+| WASM         | ✅     |
+| Live preview | ✅     |
+
+## Code Blocks
+
+\`\`\`rust
+fn main() {
+    let site = Rustpress::new();
+    site.build("./content", "./output");
+    println!("Site built in {}ms", site.elapsed());
+}
+\`\`\`
+
+> Edit anything on the left — the preview updates automatically.
+`;
+
+const SLIDESHOW_EXAMPLE = `---
+title: "My WASM Presentation"
+author: "Rustpress"
+---
+
+<Slide title="Rustpress + WebAssembly">
+# Zero-install presentations
+
+This slideshow runs entirely in your browser via WebAssembly — no server required.
+
+- **Reactive** Vue.js frontend
+- **Pre-built** full-text search
+- **Portable** — share a single HTML file
+</Slide>
+
+<Slide title="How it works" type="split-left">
+## Architecture
+
+Rust parses your Markdown and produces a Vue store (JSON). The Vue SPA reads this and renders everything reactively.
+
+\`\`\`
+Markdown → Rust → JSON Store → Vue SPA
+\`\`\`
+</Slide>
+
+<Slide title="Code in Slides">
+## Rust code renders beautifully
+
+\`\`\`rust
+fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+\`\`\`
+
+> Syntax highlighting and code blocks work inside slides too.
+</Slide>
+
+<Slide title="Thank You" type="center">
+# Get started today
+
+Install Rustpress and build your next static site or presentation.
+
+[View on GitLab](https://gitlab.com/hahihula/rustpress)
+</Slide>
+`;
+
+const EXAMPLES = { basic: BASIC_EXAMPLE, slideshow: SLIDESHOW_EXAMPLE };
+
+createApp({
+  setup() {
+    const wasmReady = ref(false);
+    const markdownInput = ref('');
+    const renderedHtml = ref('');
+    const slideshowHtml = ref('');
+    const errorMsg = ref('');
+    const currentMode = ref('basic');
+    const fullscreenOpen = ref(false);
+    const status = ref('loading'); // loading | idle | rendering | ready
+
+    const editorEl = ref(null);
+    const lineNums = ref(null);
+    const slideshowFrame = ref(null);
+    const fullscreenFrame = ref(null);
+    const fullscreenModal = ref(null);
+    const mainEl = ref(null);
+    const editorPane = ref(null);
+    const editorWidth = ref(0);
+    const isResizing = ref(false);
+
+    let rustpress = null;
+    let renderTimer = null;
+
+    const tabs = [
+      { id: 'basic', label: '// markdown' },
+      { id: 'slideshow', label: '// slideshow' },
+    ];
+
+    const lineCount = computed(() => (markdownInput.value.match(/\n/g) || []).length + 1);
+
+    const statusClass = computed(() => {
+      if (status.value === 'loading') return 'loading';
+      if (status.value === 'rendering') return 'loading';
+      if (status.value === 'ready') return '';
+      return 'idle';
+    });
+
+    const statusText = computed(() => {
+      if (status.value === 'loading') return 'loading wasm…';
+      if (status.value === 'rendering') return 'rendering…';
+      if (status.value === 'ready') return 'rendered';
+      return 'ready';
+    });
+
+    async function initWasm() {
+      status.value = 'loading';
       try {
-        if (currentMode === 'slideshow') {
-          const result = rustpress.render_slideshow(editor.value);
-          preview.innerHTML = '';
-          const iframe = document.createElement('iframe');
-          iframe.style.width = '100%';
-          iframe.style.height = '100%';
-          iframe.style.border = 'none';
-          preview.appendChild(iframe);
-          iframe.contentDocument.open();
-          iframe.contentDocument.write(result);
-          iframe.contentDocument.close();
-        } else {
-          preview.innerHTML = '';
-          preview.innerHTML = rustpress.render_markdown(editor.value);
-        }
-      } catch (error) {
-        preview.innerHTML = '<div style="color: red; padding: 1rem;">Error: ' + error.message + '</div>';
-        console.error(error);
+        await init();
+        rustpress = new Rustpress();
+        wasmReady.value = true;
+        status.value = 'idle';
+        loadExample();
+      } catch(e) {
+        status.value = 'idle';
+        errorMsg.value = 'Failed to load WASM: ' + e.message;
+        wasmReady.value = true;
       }
     }
 
-    function loadExample() {
-      document.getElementById('markdown-editor').value = EXAMPLES[currentMode];
-      renderMarkdown();
+    function render() {
+      if (!rustpress) return;
+      errorMsg.value = '';
+      status.value = 'rendering';
+      try {
+        if (currentMode.value === 'slideshow') {
+          slideshowHtml.value = rustpress.render_slideshow(markdownInput.value);
+        } else {
+          renderedHtml.value = rustpress.render_markdown(markdownInput.value);
+          slideshowHtml.value = '';
+        }
+        status.value = 'ready';
+      } catch(e) {
+        errorMsg.value = 'Render error: ' + e.message;
+        status.value = 'idle';
+      }
     }
 
+    let slideshowBlobUrl = null;
+
+    function writeToIframe(frame, html) {
+      if (!frame || !html) return;
+      if (slideshowBlobUrl) URL.revokeObjectURL(slideshowBlobUrl);
+      slideshowBlobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      frame.src = slideshowBlobUrl;
+    }
+
+    watch(slideshowHtml, (html) => {
+      nextTick(() => {
+        if (slideshowFrame.value && html) writeToIframe(slideshowFrame.value, html);
+      });
+    });
+
+    function renderNow() { render(); }
+
+    function onEditorInput() {
+      clearTimeout(renderTimer);
+      renderTimer = setTimeout(render, 350);
+    }
+
+    function loadExample() {
+      markdownInput.value = EXAMPLES[currentMode.value];
+      nextTick(() => render());
+    }
+
+    function resetExample() { loadExample(); }
+
     function switchMode(mode) {
-      currentMode = mode;
-      document.querySelectorAll('#modeTabs .tab-btn').forEach(function(b) { b.classList.remove('active'); });
-      document.querySelector('[data-tab="' + mode + '"]').classList.add('active');
-      document.getElementById('mode-indicator').textContent =
-        mode === 'slideshow' ? 'Slideshow - Vue SPA with embedded store' : 'Basic markdown - HTML';
+      currentMode.value = mode;
+      slideshowHtml.value = '';
+      renderedHtml.value = '';
+      errorMsg.value = '';
       loadExample();
     }
 
-    initRustpress();
+    function insertTab(e) {
+      const el = editorEl.value;
+      const start = el.selectionStart;
+      const end = el.selectionEnd;
+      markdownInput.value = markdownInput.value.substring(0, start) + '  ' + markdownInput.value.substring(end);
+      nextTick(() => { el.selectionStart = el.selectionEnd = start + 2; });
+    }
 
-    document.getElementById('render-btn').addEventListener('click', renderMarkdown);
-    document.getElementById('reset-btn').addEventListener('click', loadExample);
+    function syncScroll() {
+      if (lineNums.value && editorEl.value) {
+        lineNums.value.scrollTop = editorEl.value.scrollTop;
+      }
+    }
 
-    document.querySelectorAll('#modeTabs .tab-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() { switchMode(btn.dataset.tab); });
+    function presentFullscreen() {
+      fullscreenOpen.value = true;
+      nextTick(() => {
+        writeToIframe(fullscreenFrame.value, slideshowHtml.value);
+        fullscreenModal.value?.focus();
+      });
+      document.addEventListener('keydown', onEscKey);
+    }
+
+    function closeFullscreen() {
+      fullscreenOpen.value = false;
+      document.removeEventListener('keydown', onEscKey);
+    }
+
+    function onEscKey(e) { if (e.key === 'Escape') closeFullscreen(); }
+
+    function downloadSlideshow() {
+      if (!slideshowHtml.value) return;
+      const blob = new Blob([slideshowHtml.value], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'presentation.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Resize logic
+    function startResize(e) {
+      isResizing.value = true;
+      const startX = e.clientX;
+      const startW = editorPane.value.offsetWidth;
+      const totalW = mainEl.value.offsetWidth;
+
+      function onMove(ev) {
+        const delta = ev.clientX - startX;
+        const newW = Math.max(180, Math.min(totalW - 200, startW + delta));
+        editorWidth.value = newW;
+      }
+      function onUp() {
+        isResizing.value = false;
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    }
+
+    onMounted(() => {
+      editorWidth.value = Math.floor(mainEl.value.offsetWidth * 0.32);
+      initWasm();
     });
 
-    var renderTimeout;
-    document.getElementById('markdown-editor').addEventListener('input', function() {
-      clearTimeout(renderTimeout);
-      renderTimeout = setTimeout(renderMarkdown, 300);
-    });
-  </script>
+    return {
+      wasmReady, markdownInput, renderedHtml, slideshowHtml, errorMsg,
+      currentMode, fullscreenOpen, status, tabs,
+      lineCount, statusClass, statusText,
+      editorEl, lineNums, slideshowFrame, fullscreenFrame, fullscreenModal,
+      mainEl, editorPane, editorWidth, isResizing,
+      renderNow, onEditorInput, loadExample, resetExample,
+      switchMode, insertTab, syncScroll,
+      presentFullscreen, closeFullscreen, downloadSlideshow,
+      startResize
+    };
+  }
+}).mount('#app');
+</script>
 </body>
 </html>
