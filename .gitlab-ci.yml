@@ -234,7 +234,7 @@ docker:build:using-template:
 
 pages:
   stage: pages
-  image: rustwasm/wasm-pack:latest
+  image: jdrouet/wasm-pack:latest
   script:
     - rustc --version && cargo --version && wasm-pack --version
     - cd rustpress-wasm
