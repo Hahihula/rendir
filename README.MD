@@ -4,6 +4,12 @@
 <img src="./rustpress_logo.png" height="300" />
 </div>
 
+<div align="center">
+
+[![Live Demo](https://img.shields.io/badge/GitLab%20Pages-Live%20Demo-FFC61B?style=for-the-badge&logo=gitlab)](https://hahihula.gitlab.io/rustpress)
+
+</div>
+
 Rustpress is a flexible static site generator written in Rust that converts Markdown content into static websites. It uses a **Vue SPA architecture** — Rust parses and provides data as JSON, and Vue.js handles all rendering and interactivity on the client side. A built-in **dev server with live reload** accelerates the development workflow.
 
 ## Architecture
