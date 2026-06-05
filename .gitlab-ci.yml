@@ -1,6 +1,7 @@
 stages:
   - test
   - build
+  - pages
   - release-crate
   - mirror
   - github-release
@@ -226,3 +227,25 @@ docker:build:using-template:
   only:
     - tags
   when: manual
+
+#############################################
+# GitLab Pages (WASM Demo)
+#############################################
+
+pages:
+  stage: pages
+  image: rustwasm/wasm-pack:latest
+  script:
+    - rustc --version && cargo --version && wasm-pack --version
+    - cd rustpress-wasm
+    - rm -rf dist
+    - wasm-pack build --target web
+    - cp ./demo/index.html ./dist/
+    - cp -r ./pkg/. ./dist/
+    - mv ./dist ../public
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+  interruptible: true
