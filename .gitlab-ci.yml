@@ -242,6 +242,7 @@ pages:
     - cd rustpress-wasm
     - rm -rf dist
     - wasm-pack build --target web
+    - mkdir ./dist
     - cp ./demo/index.html ./dist/
     - cp -r ./pkg/. ./dist/
     - mv ./dist ../public
