@@ -31,7 +31,7 @@ include:
 
 test:linux:cli:
   stage: test
-  image: rust:latest
+  image: rustlang/rust:nightly
   <<: *cache_config
   script:
     - rustc --version && cargo --version
@@ -48,7 +48,7 @@ test:linux:cli:
 
 build:linux:cli:
   stage: build
-  image: rust:latest
+  image: rustlang/rust:nightly
   <<: *cache_config
   script:
     - rustc --version && cargo --version
@@ -234,7 +234,9 @@ docker:build:using-template:
 
 pages:
   stage: pages
-  image: jdrouet/wasm-pack:latest
+  image: rustlang/rust:nightly
+  before_script:
+    - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
   script:
     - rustc --version && cargo --version && wasm-pack --version
     - cd rustpress-wasm
