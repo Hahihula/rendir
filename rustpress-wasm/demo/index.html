@@ -330,6 +330,12 @@
       border: none;
     }
 
+    /* While the editor resizer is being dragged, the preview iframe must
+       pass pointer events through to the parent window, otherwise its
+       sandboxed document captures mousemove/mouseup and the drag gets
+       stuck (and the cursor appears to never "let go"). */
+    .drag-ignore { pointer-events: none; }
+
     /* ─── Empty state ─── */
     .empty-state {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -547,6 +553,7 @@
         <iframe
           v-show="slideshowHtml"
           ref="slideshowFrame"
+          :class="{ 'drag-ignore': isResizing }"
           sandbox="allow-scripts"
         ></iframe>
         <div v-show="!slideshowHtml && !errorMsg" class="empty-state" style="flex:1">
