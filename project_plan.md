@@ -172,7 +172,7 @@ impl Rustpress {
 rustpress/
 ├── Cargo.toml           # Workspace definition
 ├── rustpress-core/      # Core library (works in both contexts)
-├── rustpress-cli/       # CLI application
+├── rustpress/       # CLI application
 ├── rustpress-wasm/      # WASM bindings
 ├── rustpress-templates/ # Built-in templates
 └── examples/            # Example projects

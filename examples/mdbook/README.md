@@ -65,13 +65,13 @@ Rustpress parses `SUMMARY.md` to build a navigation tree. Chapters can be nested
 
 ```bash
 # Build an mdbook project
-cargo run -p rustpress-cli -- build \
+cargo run -p rustpress -- build \
   --input examples/mdbook/content/ \
   --output site/ \
   --template mdbook
 
 # Single file conversion
-cargo run -p rustpress-cli -- convert \
+cargo run -p rustpress -- convert \
   --input examples/mdbook/content/src/intro.md \
   --output intro.html \
   --template mdbook

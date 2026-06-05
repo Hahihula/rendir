@@ -121,7 +121,7 @@ cd rustpress
 cargo build --release
 
 # Create a presentation
-cargo run -p rustpress-cli -- convert \\
+cargo run -p rustpress -- convert \\
   --input my-presentation.md \\
   --output presentation.html \\
   --template slideshow

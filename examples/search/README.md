@@ -95,7 +95,7 @@ This means **no server required** — the search works from static hosting.
 
 ```bash
 # Build with search index
-cargo run -p rustpress-cli -- build --input content/ --output site/
+cargo run -p rustpress -- build --input content/ --output site/
 
 # The search index is embedded automatically
 ```

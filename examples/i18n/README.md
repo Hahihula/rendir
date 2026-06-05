@@ -39,13 +39,13 @@ Languages are automatically detected from top-level directories in the content f
 
 ```bash
 # Build with i18n support
-cargo run -p rustpress-cli -- build \
+cargo run -p rustpress -- build \
   --input examples/i18n/content/ \
   --output /tmp/i18n/ \
   --template blog
 
 # Development server with live reload
-cargo run -p rustpress-cli -- dev \
+cargo run -p rustpress -- dev \
   --input examples/i18n/content/ \
   --output /tmp/i18n/ \
   --template blog

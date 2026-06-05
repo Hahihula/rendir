@@ -92,7 +92,7 @@ tags: rust, web, tutorial
 ### Build entire blog:
 
 ```bash
-cargo run -p rustpress-cli -- build \
+cargo run -p rustpress -- build \
   --input examples/blog/content/ \
   --output /tmp/blog/ \
   --template blog
@@ -101,7 +101,7 @@ cargo run -p rustpress-cli -- build \
 ### Convert single post:
 
 ```bash
-cargo run -p rustpress-cli -- convert \
+cargo run -p rustpress -- convert \
   --input content/posts/2024-01-15-welcome.md \
   --output output/post.html \
   --template blog

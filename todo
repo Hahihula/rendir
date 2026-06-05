@@ -11,12 +11,13 @@
   	c) github action for github
   	d) gitlab ci template
     e) mirror to github
-  * test on some public mdbooks
+  ✓ test on some public mdbooks
   ✓ add support for multilanguage sites
   * blog and cookbook should have rss feature
   * rss should have absolute paths
   * teplates should be either 1) relative/absolute local path 2) name of template from official (my) repository (curently non existing) 3) url to teplate repository
   * test zola compatibility
+  * add support for vanila template and template with rust
 
 
 ### Nice to have:
