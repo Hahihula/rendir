@@ -71,10 +71,12 @@ build:linux:cli:
 
 release:crates-io:
   stage: release-crate
-  image: rust:latest
+  image: rustlang/rust:nightly
   script:
     - cargo login $CRATES_IO_TOKEN
-    - cd rustpress
+    - cd rustpress-core
+    - cargo publish
+    - cd ../rustpress
     - cargo publish
   only:
     - tags

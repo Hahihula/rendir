@@ -17,7 +17,7 @@ exclude = [
 ]
 
 [dependencies]
-rustpress-core = { path = "../rustpress-core" }
+rustpress-core = { path = "../rustpress-core", version = "0.1.0" }
 clap = { version = "4.0", features = ["derive"] }
 anyhow = { workspace = true }
 walkdir = "2.3"

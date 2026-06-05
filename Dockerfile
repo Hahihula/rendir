@@ -1,18 +1,14 @@
-FROM alpine:3.19 AS builder
-
-RUN apk add --no-cache rustup cargo
-
-RUN rustup default stable
+FROM rust:1-alpine3.21 AS builder
 
 WORKDIR /build
 
-COPY Cargo.toml Cargo.lock* ./
+COPY Cargo.toml Cargo.lock ./
 COPY rustpress ./rustpress
 COPY rustpress-core ./rustpress-core
 
 RUN cargo build --release --package rustpress
 
-FROM alpine:3.19
+FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates
 
