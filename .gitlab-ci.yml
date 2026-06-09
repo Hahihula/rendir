@@ -66,22 +66,81 @@ build:linux:cli:
   interruptible: true
 
 #############################################
-# Release Jobs (On Tags)
+# Release Jobs (On Tags — automatic)
 #############################################
 
-release:crates-io:
+# Step 1: publish rendir-core first
+release:crates-io:core:
   stage: release-crate
   image: rustlang/rust:nightly
+  <<: *cache_config
   script:
     - cargo login $CRATES_IO_TOKEN
+    # Strip the path dependency so crates.io accepts the publish
     - cd rendir-core
-    - cargo publish
-    - cd ../rendir
-    - cargo publish
+    - cargo publish --allow-dirty
   only:
     - tags
-  when: manual
-  allow_failure: true
+
+# Step 2: publish rendir CLI — depends on core being on the registry
+release:crates-io:cli:
+  stage: release-crate
+  image: rustlang/rust:nightly
+  <<: *cache_config
+  needs:
+    - release:crates-io:core
+  script:
+    - cargo login $CRATES_IO_TOKEN
+    - cd rendir
+    # crates.io index propagation delay — core needs to be visible
+    - echo "Waiting 60s for crates.io index to propagate..."
+    - sleep 60
+    - cargo publish --allow-dirty
+  only:
+    - tags
+
+# Step 3: build and publish WASM to npm
+release:npm:wasm:
+  stage: release-crate
+  image: rustlang/rust:nightly
+  needs:
+    - release:crates-io:core
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq nodejs npm
+    - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+    # Install a recent npm (apt ships an old one)
+    - npm install -g npm@latest
+  script:
+    - rustc --version && cargo --version && wasm-pack --version
+    - cd rendir-wasm
+    # Build for bundler target (most useful for npm consumers)
+    # Also build web target so the GitLab pages demo still works
+    - wasm-pack build --target bundler --out-dir pkg-npm
+    - wasm-pack build --target web --out-dir pkg-web
+    # Set the package name and version from the Cargo.toml
+    - WASM_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+    - |
+      node -e "
+        const fs = require('fs');
+        const pkg = JSON.parse(fs.readFileSync('pkg-npm/package.json'));
+        pkg.name = 'rendir-wasm';
+        pkg.version = '$WASM_VERSION';
+        pkg.description = 'WebAssembly bindings for rendir-core — convert Markdown to Vue 3 SPAs in the browser';
+        pkg.keywords = ['rendir', 'wasm', 'markdown', 'vue', 'static-site-generator'];
+        pkg.license = 'MIT';
+        pkg.repository = { type: 'git', url: 'https://gitlab.com/hahihula/rendir' };
+        fs.writeFileSync('pkg-npm/package.json', JSON.stringify(pkg, null, 2));
+      "
+    - echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+    - cd pkg-npm
+    - npm publish --access public
+  artifacts:
+    # Keep the web build for the pages job
+    paths:
+      - rendir-wasm/pkg-web/
+    expire_in: 1 week
+  only:
+    - tags
 
 release:gitlab:
   stage: release
@@ -151,6 +210,10 @@ mirror:github:
           cat README.md.original >> README.md
         fi
 
+        # Remove the original README.MD and the temp file so only the mirror
+        # notice (README.md) is displayed on GitHub.
+        rm -f README.md.original
+        git rm --ignore-unmatch README.MD
         git add README.md
         git commit -m "Update README for GitHub mirror [skip ci]" || true
         git push "https://${GITHUB_TOKEN}@github.com/hahihula/rendir.git" "$CI_COMMIT_REF_NAME" --force
