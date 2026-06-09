@@ -7,7 +7,7 @@ license = "MIT"
 repository = "https://gitlab.com/hahihula/rendir"
 homepage = "https://gitlab.com/hahihula/rendir"
 readme = "../README.MD"
-keywords = ["static-site-generator", "ssg", "markdown", "vue", "blog"]
+keywords = ["ssg", "markdown", "vue", "blog", "static-site"]
 categories = ["command-line-utilities", "development-tools", "web-programming"]
 exclude = [
     "/.github",

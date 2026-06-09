@@ -7,7 +7,7 @@ license = "MIT"
 repository = "https://gitlab.com/hahihula/rendir"
 homepage = "https://gitlab.com/hahihula/rendir"
 readme = "../README.MD"
-keywords = ["rendir", "wasm", "markdown", "vue", "static-site-generator"]
+keywords = ["rendir", "wasm", "markdown", "vue", "static-site"]
 categories = ["command-line-utilities", "development-tools", "web-programming", "wasm"]
 
 [lib]
