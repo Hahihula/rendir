@@ -1,4 +1,4 @@
-// rustpress-core/src/components/builtins.rs
+// rendir-core/src/components/builtins.rs
 use super::{Component, ComponentRenderer};
 use crate::markdown::parse_markdown_fragment;
 

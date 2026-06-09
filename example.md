@@ -1,25 +1,25 @@
 ---
-title: Welcome to Rustpress
-author: Rustpress Team
+title: Welcome to Rendir
+author: Rendir Team
 date: 2026-05-17
 tags: [rust, static-site-generator, markdown, wasm]
 ---
 
-# Rustpress
+# Rendir
 
-Rustpress is a flexible static site generator written in Rust, designed to convert Markdown content into static websites. It offers both CLI and WebAssembly (WASM) interfaces, with support for custom components, templates, and more.
+Rendir is a flexible static site generator written in Rust, designed to convert Markdown content into static websites. It offers both CLI and WebAssembly (WASM) interfaces, with support for custom components, templates, and more.
 
 <YouTube id="5C_HPTJg5ek" />
 
 ## Features
 
 <Alert type="info" title="Try it out">
-This example page demonstrates all currently supported features in Rustpress. You can convert this file using `rustpress convert --input example.md --output example.html` and open it in your browser to see the rendered output.
+This example page demonstrates all currently supported features in Rendir. You can convert this file using `rendir convert --input example.md --output example.html` and open it in your browser to see the rendered output.
 </Alert>
 
 ## Component Syntax
 
-Rustpress supports **two syntaxes** for components.
+Rendir supports **two syntaxes** for components.
 
 ### HTML-like Syntax
 
@@ -68,8 +68,8 @@ The YouTube component embeds videos using an iframe. Above this section, you sho
 Clone the repository and build with Cargo:
 
 ```bash
-git clone https://gitlab.com/hahihula/rustpress.git
-cd rustpress
+git clone https://gitlab.com/hahihula/rendir.git
+cd rendir
 cargo build --release
 ```
 
@@ -77,41 +77,41 @@ cargo build --release
 Convert a single Markdown file:
 
 ```bash
-rustpress convert --input example.md --output example.html
+rendir convert --input example.md --output example.html
 ```
 
 Build an entire directory:
 
 ```bash
-rustpress build --input content/ --output site/
+rendir build --input content/ --output site/
 ```
 
 ## WebAssembly
-Rustpress also ships as a WASM module for browser usage. See the project README for details.
+Rendir also ships as a WASM module for browser usage. See the project README for details.
 </Tabs>
 
 ## Frontmatter
 
 Metadata is extracted from YAML frontmatter at the top of each file. The frontmatter for this page includes:
 
-- **title**: "Welcome to Rustpress"
-- **author**: "Rustpress Team"
+- **title**: "Welcome to Rendir"
+- **author**: "Rendir Team"
 - **date**: "2026-05-17"
 - **tags**: rust, static-site-generator, markdown, wasm
 
 ## Templates
 
-Rustpress uses the [Tera](https://tera.netlify.app/) templating engine. You can pass custom templates via the `--template` flag:
+Rendir uses the [Tera](https://tera.netlify.app/) templating engine. You can pass custom templates via the `--template` flag:
 
 ```bash
-rustpress convert --input example.md --output example.html --template my-template.html
+rendir convert --input example.md --output example.html --template my-template.html
 ```
 
 Templates receive a `{{ content | safe }}` variable for the rendered HTML content and all frontmatter keys as variables.
 
 ## Markdown Extensions
 
-Rustpress supports extended Markdown syntax via `pulldown-cmark`:
+Rendir supports extended Markdown syntax via `pulldown-cmark`:
 
 - Tables
 - Footnotes
@@ -132,4 +132,4 @@ Rustpress supports extended Markdown syntax via `pulldown-cmark`:
 
 ---
 
-*Built with Rust and ❤️ by the Rustpress team*
+*Built with Rust and ❤️ by the Rendir team*

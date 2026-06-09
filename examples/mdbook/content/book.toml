@@ -1,5 +1,5 @@
 [book]
 title = "Example Book"
-author = "Rustpress Team"
+author = "Rendir Team"
 description = "A sample mdbook project for testing"
 src = "src"

@@ -79,9 +79,9 @@ class LanguageSelector {
 // Auto-initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('language-selector');
-    if (container && window.__RUSTPRESS_LANGUAGES__) {
+    if (container && window.__RENDIR_LANGUAGES__) {
         const currentLang = container.dataset.currentLang || 'en';
-        window.__langSelector = new LanguageSelector('language-selector', window.__RUSTPRESS_LANGUAGES__, currentLang);
+        window.__langSelector = new LanguageSelector('language-selector', window.__RENDIR_LANGUAGES__, currentLang);
     }
 });
 

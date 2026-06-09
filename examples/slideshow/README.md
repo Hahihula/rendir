@@ -1,10 +1,10 @@
 # Slideshow Example
 
-This example demonstrates how to create presentations with rustpress.
+This example demonstrates how to create presentations with Rendir.
 
 ## Overview
 
-rustpress supports slideshow-style presentations with:
+Rendir supports slideshow-style presentations with:
 - **Vue.js SPA** - JavaScript renders slides with reactive data binding
 - **Markdown per slide** — each slide authored in Markdown, converted to HTML
 - **Keyboard navigation** — arrow keys, space, Home/End
@@ -61,7 +61,7 @@ Rust provides this JSON to the Vue SPA via `<script id="store-data">`:
 ### Primary: `<Slide>` Component
 
 ```markdown
-:::slide{title="Welcome to Rustpress"}
+:::slide{title="Welcome to Rendir"}
 # Hello!
 
 This is the first slide. You can use **Markdown** here.
@@ -143,13 +143,13 @@ Click the **"Present"** link (top-right) to open presenter view. Presenter view 
 
 ```bash
 # Build a slideshow
-cargo run -p rustpress -- build \
+cargo run -p rendir -- build \
   --input examples/slideshow/content/ \
   --output site/ \
   --template slideshow
 
 # Single file conversion
-cargo run -p rustpress -- convert \
+cargo run -p rendir -- convert \
   --input examples/slideshow/content/presentation.md \
   --output /tmp/presentation.html \
   --template slideshow
@@ -172,7 +172,7 @@ examples/slideshow/
 
 ### Creating Custom Slideshow Templates
 
-Copy `rustpress-core/src/templates/slideshow/` to your own folder and customize:
+Copy `rendir-core/src/templates/slideshow/` to your own folder and customize:
 
 ```
 my-templates/slideshow/

@@ -1,12 +1,12 @@
 ---
 title: "Mehrsprachiger Blog"
-description: "Eine Demonstration der Rustpress i18n-Funktionen"
+description: "Eine Demonstration der Rendir i18n-Funktionen"
 template: blog-landing
 ---
 
 # Willkommen
 
-Dies ist ein mehrsprachiger Blog, der die Rustpress-Internationalisierungsfunktionen (i18n) demonstriert.
+Dies ist ein mehrsprachiger Blog, der die Rendir-Internationalisierungsfunktionen (i18n) demonstriert.
 
 ## Funktionen
 

@@ -1,12 +1,12 @@
 ---
 title: "多语言博客"
-description: "展示 Rustpress 国际化功能的演示"
+description: "展示 Rendir 国际化功能的演示"
 template: blog-landing
 ---
 
 # 欢迎
 
-这是一个多语言博客，展示了 Rustpress 的国际化（i18n）功能。
+这是一个多语言博客，展示了 Rendir 的国际化（i18n）功能。
 
 ## 功能
 

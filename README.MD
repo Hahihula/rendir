@@ -1,16 +1,30 @@
-# Rustpress
+# Rendir
 
 <div align="center">
-<img src="./rustpress_logo.png" height="300" />
+<img src="./rendir_logo.png" height="300" />
 </div>
 
 <div align="center">
 
-[![Live Demo](https://img.shields.io/badge/GitLab%20Pages-Live%20Demo-FFC61B?style=for-the-badge&logo=gitlab)](https://hahihula.gitlab.io/rustpress)
+[![Live Demo](https://img.shields.io/badge/GitLab%20Pages-Live%20Demo-FFC61B?style=for-the-badge&logo=gitlab)](https://hahihula.gitlab.io/rendir)
 
 </div>
 
-Rustpress is a flexible static site generator written in Rust that converts Markdown content into static websites. It uses a **Vue SPA architecture** — Rust parses and provides data as JSON, and Vue.js handles all rendering and interactivity on the client side. A built-in **dev server with live reload** accelerates the development workflow.
+## Why Rendir?
+
+The name Rendir comes from the two things it does best: rendering and directories.
+
+Point Rendir at a directory of Markdown files and it renders a complete, fast, interactive static site — no configuration ceremonies, no plugin ecosystems to navigate, no server to maintain. Just content in, site out.
+
+The name also borrows from the Spanish *rendir* — meaning *to yield* or *to produce*. Which is exactly the relationship Rendir has with your content: you write, it yields.
+
+Under the hood, Rendir is powered by Rust for parsing and build performance, and Vue.js for client-side reactivity — but you don't need to care about any of that. You just need a directory of Markdown files and somewhere to deploy HTML.
+
+**Ren. Dir. Done.**
+
+---
+
+Rendir is a flexible static site generator written in Rust that converts Markdown content into static websites. It uses a **Vue SPA architecture** — Rust parses and provides data as JSON, and Vue.js handles all rendering and interactivity on the client side. A built-in **dev server with live reload** accelerates the development workflow.
 
 ## Architecture
 
@@ -22,7 +36,7 @@ Rust processes Markdown and outputs a **Vue Store** (JSON) embedded in the HTML.
 
 ## Templates
 
-Rustpress comes with three built-in templates, each using the Vue SPA approach:
+Rendir comes with three built-in templates, each using the Vue SPA approach:
 
 | Template | CLI Name | Description |
 |----------|----------|-------------|
@@ -50,14 +64,14 @@ All templates embed store data via `<script id="store-data" type="application/js
 
 ```bash
 # Clone the repository
-git clone https://gitlab.com/hahihula/rustpress.git
-cd rustpress
+git clone https://gitlab.com/hahihula/rendir.git
+cd rendir
 
 # Build the project
 cargo build --release
 
 # Install the CLI tool (optional)
-cargo install --path rustpress
+cargo install --path rendir
 ```
 
 ## Usage
@@ -69,7 +83,7 @@ The CLI provides three main commands: `convert` for single files, `build` for si
 #### Build a Blog
 
 ```bash
-cargo run -p rustpress -- build \
+cargo run -p rendir -- build \
   --input examples/blog/content/ \
   --output /tmp/blog/ \
   --template blog
@@ -78,7 +92,7 @@ cargo run -p rustpress -- build \
 #### Build a Slideshow
 
 ```bash
-cargo run -p rustpress -- build \
+cargo run -p rendir -- build \
   --input examples/slideshow/content/ \
   --output /tmp/slideshow/ \
   --template slideshow
@@ -87,7 +101,7 @@ cargo run -p rustpress -- build \
 #### Build an mdbook Project
 
 ```bash
-cargo run -p rustpress -- build \
+cargo run -p rendir -- build \
   --input examples/mdbook/content/ \
   --output /tmp/mdbook/ \
   --template mdbook
@@ -97,10 +111,10 @@ cargo run -p rustpress -- build \
 
 ```bash
 # Basic conversion
-rustpress convert --input example.md --output example.html
+rendir convert --input example.md --output example.html
 
 # Using a template
-rustpress convert --input example.md --output example.html --template slideshow
+rendir convert --input example.md --output example.html --template slideshow
 ```
 
 #### Development Server with Live Reload
@@ -108,7 +122,7 @@ rustpress convert --input example.md --output example.html --template slideshow
 The `dev` command starts a development server with automatic rebuilding and live reload:
 
 ```bash
-cargo run -p rustpress -- dev \
+cargo run -p rendir -- dev \
   --input examples/blog/content/ \
   --output /tmp/blog/ \
   --template blog
@@ -124,7 +138,7 @@ The server serves on `http://localhost:3000` by default. After each rebuild, a v
 
 ### Custom Components
 
-Rustpress supports two syntaxes for custom components:
+Rendir supports two syntaxes for custom components:
 
 #### HTML-like Syntax
 
@@ -251,7 +265,7 @@ Vue parses this and uses it as reactive store data.
 
 ## Full-Text Search
 
-Rustpress builds a **full-text search index** at build time:
+Rendir builds a **full-text search index** at build time:
 
 1. **Rust** parses all documents, builds an inverted index (`BuiltSearchIndex`)
 2. **Index** is serialized to JSON and embedded in the store's `search_index` field
@@ -265,7 +279,7 @@ Both **blog** and **mdbook** templates use this same shared search component.
 
 ## Internationalization (i18n)
 
-Rustpress supports multi-language sites with automatic language detection and fallback.
+Rendir supports multi-language sites with automatic language detection and fallback.
 
 > **Note:** mdbook i18n works differently and is not yet supported. Only **blog** and **slideshow** templates support multi-language sites.
 
@@ -304,7 +318,7 @@ content/
 The build command automatically detects i18n structure:
 
 ```bash
-cargo run -p rustpress -- build \
+cargo run -p rendir -- build \
   --input examples/i18n/content/ \
   --output /tmp/i18n-site/ \
   --template blog
@@ -373,29 +387,29 @@ For browser usage, you can use the WASM build:
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Rustpress WASM Demo</title>
+    <title>Rendir WASM Demo</title>
 </head>
 <body>
     <div id="output"></div>
 
     <script type="module">
-        import init, { Rustpress } from './rustpress_wasm.js';
+        import init, { Rendir } from './rendir_wasm.js';
 
         async function run() {
             await init();
-            const rustpress = new Rustpress();
+            const rendir = new Rendir();
 
             const markdown = `
-# Hello from Rustpress
+# Hello from Rendir
 
 This is rendered using WebAssembly!
 
 <Alert type="info" title="WebAssembly">
-  Rustpress is running directly in your browser via WASM.
+  Rendir is running directly in your browser via WASM.
 </Alert>
             `;
 
-            const html = rustpress.render_markdown(markdown);
+            const html = rendir.render_markdown(markdown);
             document.getElementById('output').innerHTML = html;
         }
 
@@ -408,8 +422,8 @@ This is rendered using WebAssembly!
 ## Project Structure
 
 ```
-rustpress/
-├── rustpress-core/      # Core library (parsing, rendering, components)
+rendir/
+├── rendir-core/      # Core library (parsing, rendering, components)
 │   └── src/
 │       ├── lib.rs           # Exports, tests
 │       ├── markdown.rs      # Markdown parsing
@@ -425,8 +439,8 @@ rustpress/
 │           ├── slideshow/   # Slideshow Vue SPA templates
 │           ├── mdbook/      # mdbook Vue SPA template
 │           └── shared/      # Shared components (search.js, language-selector.js)
-├── rustpress/       # CLI application
-├── rustpress-wasm/      # WASM bindings
+├── rendir/       # CLI application
+├── rendir-wasm/      # WASM bindings
 └── examples/            # Example projects
     ├── blog/            # Blog example
     ├── slideshow/       # Slideshow example
@@ -449,7 +463,7 @@ rustpress/
 cargo build
 
 # Build WASM package
-cd rustpress-wasm
+cd rendir-wasm
 wasm-pack build --target web
 cp ./demo/index.html ./dist/
 cp ./pkg/* ./dist/
@@ -468,19 +482,19 @@ Each template has a working example in `examples/`:
 
 ```bash
 # Blog
-cargo run -p rustpress -- build -i examples/blog/content -o /tmp/blog -t blog
+cargo run -p rendir -- build -i examples/blog/content -o /tmp/blog -t blog
 
 # Blog with live reload
-cargo run -p rustpress -- dev -i examples/blog/content -o /tmp/blog -t blog
+cargo run -p rendir -- dev -i examples/blog/content -o /tmp/blog -t blog
 
 # Slideshow
-cargo run -p rustpress -- build -i examples/slideshow/content -o /tmp/slideshow -t slideshow
+cargo run -p rendir -- build -i examples/slideshow/content -o /tmp/slideshow -t slideshow
 
 # mdbook
-cargo run -p rustpress -- build -i examples/mdbook/content -o /tmp/mdbook -t mdbook
+cargo run -p rendir -- build -i examples/mdbook/content -o /tmp/mdbook -t mdbook
 
 # Multi-language (i18n) - blog and slideshow templates
-cargo run -p rustpress -- build -i examples/i18n/content -o /tmp/i18n -t blog
+cargo run -p rendir -- build -i examples/i18n/content -o /tmp/i18n -t blog
 ```
 
 ## License

@@ -252,7 +252,7 @@
                 function broadcastSlideChange() {
                     if (!syncEnabled.value) return;
                     if (typeof BroadcastChannel !== 'undefined') {
-                        const channel = new BroadcastChannel('rustpress-slides');
+                        const channel = new BroadcastChannel('rendir-slides');
                         channel.postMessage({ type: 'slide', index: currentSlideIndex.value });
                     }
                 }

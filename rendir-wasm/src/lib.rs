@@ -1,6 +1,6 @@
-// rustpress-wasm/src/lib.rs
-use rustpress_core::components::{builtins::register_builtin_components, ComponentRegistry};
-use rustpress_core::{
+// rendir-wasm/src/lib.rs
+use rendir_core::components::{builtins::register_builtin_components, ComponentRegistry};
+use rendir_core::{
     parse_markdown, parse_markdown_with_path, render_html, render_slideshow_vue,
     render_with_template,
 };
@@ -8,12 +8,12 @@ use std::path::PathBuf;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub struct Rustpress {
+pub struct Rendir {
     component_registry: ComponentRegistry,
 }
 
 #[wasm_bindgen]
-impl Rustpress {
+impl Rendir {
     #[allow(clippy::new_without_default)]
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {

@@ -1,12 +1,12 @@
 ---
 title: "Vícejazyčný Blog"
-description: "Ukázka možností internacionalizace v Rustpressu"
+description: "Ukázka možností internacionalizace v Rendiru"
 template: blog-landing
 ---
 
 # Vítejte
 
-Toto je vícejazyčný blog demonstrující možnosti internacionalizace (i18n) v Rustpressu.
+Toto je vícejazyčný blog demonstrující možnosti internacionalizace (i18n) v Rendiru.
 
 ## Funkce
 

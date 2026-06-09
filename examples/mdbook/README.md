@@ -1,13 +1,13 @@
 # mdbook Ingestion Example
 
-This example demonstrates rustpress's ability to ingest an existing mdbook project.
+This example demonstrates Rendir's ability to ingest an existing mdbook project.
 
 ## Overview
 
-Rustpress can process an mdbook project (with `book.toml` and `SUMMARY.md`) and render it using its own templates. This allows you to:
+Rendir can process an mdbook project (with `book.toml` and `SUMMARY.md`) and render it using its own templates. This allows you to:
 
 - Customize the visual design of your documentation
-- Add rustpress components (alerts, tabs, etc.) to existing content
+- Add Rendir components (alerts, tabs, etc.) to existing content
 - Integrate mdbook content into your own build pipeline
 
 ## File Structure
@@ -35,7 +35,7 @@ examples/mdbook/
 ```toml
 [book]
 title = "Example Book"
-author = "Rustpress Team"
+author = "Rendir Team"
 description = "A sample mdbook project"
 src = "src"
 ```
@@ -59,19 +59,19 @@ The `SUMMARY.md` file defines the book's structure:
 
 ### 3. Navigation Tree
 
-Rustpress parses `SUMMARY.md` to build a navigation tree. Chapters can be nested (indicated by indentation) to create sections.
+Rendir parses `SUMMARY.md` to build a navigation tree. Chapters can be nested (indicated by indentation) to create sections.
 
 ## CLI Usage
 
 ```bash
 # Build an mdbook project
-cargo run -p rustpress -- build \
+cargo run -p rendir -- build \
   --input examples/mdbook/content/ \
   --output site/ \
   --template mdbook
 
 # Single file conversion
-cargo run -p rustpress -- convert \
+cargo run -p rendir -- convert \
   --input examples/mdbook/content/src/intro.md \
   --output intro.html \
   --template mdbook
@@ -82,7 +82,7 @@ cargo run -p rustpress -- convert \
 Rust provides data to the mdbook Vue template via a `MdBookStore` object embedded in the page:
 
 ```rust
-// MdBookStore structure (from rustpress-core/src/types.rs)
+// MdBookStore structure (from rendir-core/src/types.rs)
 MdBookStore {
     title: String,                    // Book title from book.toml
     chapters: Vec<ChapterStore>,      // All chapters for sidebar navigation
@@ -117,7 +117,7 @@ Vue then renders the sidebar navigation, prev/next links, and chapter content re
 
 ## Generated Output
 
-When building, rustpress creates:
+When building, Rendir creates:
 - `index.html` — Book index/landing page (first chapter)
 - Chapter files (`intro/index.html`, etc.) — Each chapter as a separate HTML file
 - Sidebar navigation with links to all chapters
@@ -166,6 +166,6 @@ The mdbook template uses Vue SPA architecture with embedded store data:
 
 ## Notes
 
-- Rustpress uses the `src` directory from `book.toml` to resolve chapter paths
+- Rendir uses the `src` directory from `book.toml` to resolve chapter paths
 - Images referenced in Markdown are copied to the output (same behavior as slideshow)
 - The navigation tree preserves chapter hierarchy from `SUMMARY.md`

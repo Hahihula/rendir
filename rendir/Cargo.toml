@@ -1,11 +1,11 @@
 [package]
-name = "rustpress"
+name = "rendir"
 version = "0.1.0"
 edition = "2024"
 description = "A flexible static site generator that converts Markdown into Vue 3 single-page applications"
 license = "MIT"
-repository = "https://gitlab.com/hahihula/rustpress"
-homepage = "https://gitlab.com/hahihula/rustpress"
+repository = "https://gitlab.com/hahihula/rendir"
+homepage = "https://gitlab.com/hahihula/rendir"
 readme = "../README.MD"
 keywords = ["static-site-generator", "ssg", "markdown", "vue", "blog"]
 categories = ["command-line-utilities", "development-tools", "web-programming"]
@@ -17,7 +17,7 @@ exclude = [
 ]
 
 [dependencies]
-rustpress-core = { path = "../rustpress-core", version = "0.1.0" }
+rendir-core = { path = "../rendir-core", version = "0.1.0" }
 clap = { version = "4.0", features = ["derive"] }
 anyhow = { workspace = true }
 walkdir = "2.3"
