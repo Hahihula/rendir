@@ -2,6 +2,13 @@
 name = "rendir-wasm"
 version = "0.1.0"
 edition = "2024"
+description = "WebAssembly bindings for the Rendir static site generator — render Markdown to Vue 3 SPAs in the browser"
+license = "MIT"
+repository = "https://gitlab.com/hahihula/rendir"
+homepage = "https://gitlab.com/hahihula/rendir"
+readme = "../README.MD"
+keywords = ["rendir", "wasm", "markdown", "vue", "static-site-generator"]
+categories = ["command-line-utilities", "development-tools", "web-programming", "wasm"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
