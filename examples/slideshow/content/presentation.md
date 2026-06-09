@@ -1,21 +1,21 @@
 ---
-title: "Welcome to Rustpress"
-author: "Rustpress Team"
+title: "Welcome to Rendir"
+author: "Rendir Team"
 date: "2026-05-17"
 slides:
   transition: "slide"
 ---
 
-# Welcome to Rustpress
+# Welcome to Rendir
 
 A modern static site generator and presentation tool built with Rust.
 
-![Rustpress Logo](rustpress_logo.png)
+![Rendir Logo](rendir_logo.png)
 
-:::slide{title="What is Rustpress?"}
-## What is Rustpress?
+:::slide{title="What is Rendir?"}
+## What is Rendir?
 
-Rustpress is a flexible content transformation tool that supports:
+Rendir is a flexible content transformation tool that supports:
 
 - **Static site generation** — blogs, documentation, cookbooks
 - **Presentations** — reveal.js-style slideshows
@@ -36,7 +36,7 @@ Built with Rust for speed and reliability.
 :::slide{title="Components Demo"}
 ## Components
 
-rustpress supports reusable components:
+rendir supports reusable components:
 
 :::alert{type="info" title="Info"}
 This is an alert component!
@@ -60,11 +60,11 @@ Content for Tab B...
 :::slide{title="Code Support"}
 ## Code Blocks
 
-rustpress supports syntax highlighting via Markdown:
+rendir supports syntax highlighting via Markdown:
 
 ```rust
 fn main() {
-    println!("Hello, Rustpress!");
+    println!("Hello, Rendir!");
 }
 ```
 
@@ -97,7 +97,7 @@ Task list:
 :::slide{title="Search"}
 ## Built-in Search
 
-rustpress includes a **pure Rust search engine**:
+rendir includes a **pure Rust search engine**:
 
 - Pre-built index at compile time
 - Title boosting for relevant results
@@ -114,14 +114,14 @@ let results = search_index.search("rust tutorial", 10);
 
 ```bash
 # Clone the repository
-git clone https://gitlab.com/hahihula/rustpress.git
-cd rustpress
+git clone https://gitlab.com/hahihula/rendir.git
+cd rendir
 
 # Build
 cargo build --release
 
 # Create a presentation
-cargo run -p rustpress -- convert \\
+cargo run -p rendir -- convert \\
   --input my-presentation.md \\
   --output presentation.html \\
   --template slideshow
@@ -135,7 +135,7 @@ Learn more at the project repository.
 
 Thank you for your attention!
 
-**Project**: https://gitlab.com/hahihula/rustpress
+**Project**: https://gitlab.com/hahihula/rendir
 
 **License**: Apache 2.0 / MIT
 :::

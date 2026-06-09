@@ -445,7 +445,7 @@
 
                 // Listen for presenter sync
                 if (typeof BroadcastChannel !== 'undefined') {
-                    const channel = new BroadcastChannel('rustpress-slides');
+                    const channel = new BroadcastChannel('rendir-slides');
                     channel.onmessage = (e) => {
                         if (e.data && e.data.type === 'slide') {
                             goToSlide(e.data.index);

@@ -1,4 +1,4 @@
-# Contributing to rustpress
+# Contributing to Rendir
 
 This guide covers the two operational pieces you need to know as a
 maintainer:
@@ -44,7 +44,7 @@ job logs).
 | Variable          | Required for      | Where to get it                                                                                          | Required scope                                           |
 | ----------------- | ----------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `CRATES_IO_TOKEN` | `release:crates-io` | <https://crates.io/settings/tokens>                                                                       | Token with the `publish` scope                           |
-| `GITHUB_TOKEN`    | `mirror:github`, `github:release:create` | <https://github.com/settings/tokens> (fine-grained, classic also works)              | `Contents: Read and Write` on `hahihula/rustpress`        |
+| `GITHUB_TOKEN`    | `mirror:github`, `github:release:create` | <https://github.com/settings/tokens> (fine-grained, classic also works)              | `Contents: Read and Write` on `hahihula/rendir`        |
 | `DOCKERHUB_TOKEN` | `docker:build`, `docker:build:alpine`, `docker:build:using-template` | <https://hub.docker.com/settings/security>        | Docker Hub **Access Token** with `Read & Write`          |
 
 `DOCKERHUB_USERNAME` is **not** a secret — it is hard-coded to
@@ -96,8 +96,8 @@ long version includes pre-release checks, rollback, and verification.
 git checkout master
 git pull origin master
 cargo test                                            # local sanity
-$EDITOR rustpress/Cargo.toml                          # bump `version`
-git add rustpress/Cargo.toml Cargo.lock
+$EDITOR rendir/Cargo.toml                             # bump `version`
+git add rendir/Cargo.toml Cargo.lock
 git commit -m "chore: bump version to X.Y.Z"
 git push origin master
 ```
@@ -118,7 +118,7 @@ After the tag is pushed, the GitLab pipeline runs these stages:
 | Stage           | Jobs                                                  | Mode     |
 | --------------- | ----------------------------------------------------- | -------- |
 | `test`          | `test:linux:cli`                                      | auto     |
-| `build`         | `build:linux:cli` (uploads `rustpress-linux-x86_64`)  | auto     |
+| `build`         | `build:linux:cli` (uploads `rendir-linux-x86_64`)     | auto     |
 | `mirror`        | `mirror:github` (pushes tag/branch to GitHub)         | auto     |
 | `github-release`| `github:release:create`                               | auto     |
 | `release`       | `release:gitlab`                                      | auto     |
@@ -129,23 +129,23 @@ The **manual** jobs in `release-crate` and `docker` stages must be
 triggered from the pipeline UI (the play button next to the job on the
 **Pipelines** page). Run them in this order:
 
-1. `release:crates-io` — publishes the `rustpress` crate to crates.io.
+1. `release:crates-io` — publishes the `rendir` crate to crates.io.
 2. `docker:build:using-template` — pushes canonical image
-   `hahihula/rustpress` with tags `$CI_COMMIT_TAG` and `latest`.
-3. `docker:build` — pushes an additional `hahihula/rustpress` image
+   `hahihula/rendir` with tags `$CI_COMMIT_TAG` and `latest`.
+3. `docker:build` — pushes an additional `hahihula/rendir` image
    (built inline, does not use the shared template).
-4. `docker:build:alpine` — pushes `hahihula/rustpress-alpine` with tags
+4. `docker:build:alpine` — pushes `hahihula/rendir-alpine` with tags
    `$CI_COMMIT_TAG` and `latest`.
 
 ### 3.4 GitHub side
 
-The `mirror:github` job pushes the tag to `github.com/hahihula/rustpress`,
+The `mirror:github` job pushes the tag to `github.com/hahihula/rendir`,
 which in turn triggers the GitHub Actions:
 
 - `CI` workflow — builds, lints, tests, and (on tag) attaches
-  `rustpress` binary to a GitHub release via `softprops/action-gh-release@v1`.
+  `rendir` binary to a GitHub release via `softprops/action-gh-release@v1`.
 - `Docker` workflow — builds and pushes multi-arch Docker images to
-  Docker Hub as `hahihula/rustpress` (tagged with the branch ref, PR
+  Docker Hub as `hahihula/rendir` (tagged with the branch ref, PR
   ref, semver, and short SHA).
 
 The `github:release:create` GitLab job ensures a matching GitHub release
@@ -155,19 +155,19 @@ exists (deleting and recreating if a stale one is there).
 
 ```bash
 # crates.io
-cargo search rustpress
-cargo install rustpress --version X.Y.Z && rustpress --version
+cargo search rendir
+cargo install rendir --version X.Y.Z && rendir --version
 
 # GitHub
-git ls-remote --tags https://github.com/hahihula/rustpress.git | grep vX.Y.Z
-# https://github.com/hahihula/rustpress/releases/tag/vX.Y.Z
+git ls-remote --tags https://github.com/hahihula/rendir.git | grep vX.Y.Z
+# https://github.com/hahihula/rendir/releases/tag/vX.Y.Z
 
 # GitLab
-# https://gitlab.com/hahihula/rustpress/-/releases/vX.Y.Z
+# https://gitlab.com/hahihula/rendir/-/releases/vX.Y.Z
 
 # Docker Hub
-docker pull hahihula/rustpress:X.Y.Z
-docker pull hahihula/rustpress-alpine:X.Y.Z
+docker pull hahihula/rendir:X.Y.Z
+docker pull hahihula/rendir-alpine:X.Y.Z
 ```
 
 ### 3.6 If something goes wrong

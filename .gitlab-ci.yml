@@ -11,7 +11,7 @@ stages:
 variables:
   CARGO_HOME: $CI_PROJECT_DIR/.cargo
   RUST_BACKTRACE: "1"
-  DOCKER_IMAGE: $CI_REGISTRY_IMAGE/rustpress
+  DOCKER_IMAGE: $CI_REGISTRY_IMAGE/rendir
   DOCKER_TAG: $CI_COMMIT_SHORT_SHA
   DOCKERHUB_USERNAME: "hahihula"
 
@@ -52,9 +52,9 @@ build:linux:cli:
   <<: *cache_config
   script:
     - rustc --version && cargo --version
-    - cargo build --release --package rustpress
+    - cargo build --release --package rendir
     - mkdir -p artifacts/linux
-    - cp target/release/rustpress artifacts/linux/rustpress-linux-x86_64
+    - cp target/release/rendir artifacts/linux/rendir-linux-x86_64
   artifacts:
     paths:
       - artifacts/linux/
@@ -74,9 +74,9 @@ release:crates-io:
   image: rustlang/rust:nightly
   script:
     - cargo login $CRATES_IO_TOKEN
-    - cd rustpress-core
+    - cd rendir-core
     - cargo publish
-    - cd ../rustpress
+    - cd ../rendir
     - cargo publish
   only:
     - tags
@@ -96,7 +96,7 @@ release:gitlab:
     assets:
       links:
         - name: "Linux CLI (x86_64)"
-          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/artifacts/linux/rustpress-linux-x86_64"
+          url: "${CI_PROJECT_URL}/-/jobs/${CI_JOB_ID}/artifacts/file/artifacts/linux/rendir-linux-x86_64"
   only:
     - tags
 
@@ -122,15 +122,15 @@ mirror:github:
         exit 1
       fi
 
-    - git remote add github "https://${GITHUB_TOKEN}@github.com/hahihula/rustpress.git" || \
-      git remote set-url github "https://${GITHUB_TOKEN}@github.com/hahihula/rustpress.git"
+    - git remote add github "https://${GITHUB_TOKEN}@github.com/hahihula/rendir.git" || \
+      git remote set-url github "https://${GITHUB_TOKEN}@github.com/hahihula/rendir.git"
 
     - git fetch --all
 
     - |
       if [ "$CI_COMMIT_TAG" != "" ]; then
         echo "Processing tag: $CI_COMMIT_TAG"
-        git push "https://${GITHUB_TOKEN}@github.com/hahihula/rustpress.git" "refs/tags/$CI_COMMIT_TAG:refs/tags/$CI_COMMIT_TAG" --force
+        git push "https://${GITHUB_TOKEN}@github.com/hahihula/rendir.git" "refs/tags/$CI_COMMIT_TAG:refs/tags/$CI_COMMIT_TAG" --force
       else
         echo "Processing branch: $CI_COMMIT_REF_NAME"
         git checkout -B $CI_COMMIT_REF_NAME
@@ -153,7 +153,7 @@ mirror:github:
 
         git add README.md
         git commit -m "Update README for GitHub mirror [skip ci]" || true
-        git push "https://${GITHUB_TOKEN}@github.com/hahihula/rustpress.git" "$CI_COMMIT_REF_NAME" --force
+        git push "https://${GITHUB_TOKEN}@github.com/hahihula/rendir.git" "$CI_COMMIT_REF_NAME" --force
       fi
   only:
     - master
@@ -172,15 +172,15 @@ github:release:create:
         echo "Creating GitHub release for tag: $CI_COMMIT_TAG"
         export GH_TOKEN=$GITHUB_TOKEN
 
-        if gh release view "$CI_COMMIT_TAG" --repo "hahihula/rustpress" 2>/dev/null; then
+        if gh release view "$CI_COMMIT_TAG" --repo "hahihula/rendir" 2>/dev/null; then
           echo "Release $CI_COMMIT_TAG already exists, deleting it first..."
-          gh release delete "$CI_COMMIT_TAG" --repo "hahihula/rustpress" --yes
+          gh release delete "$CI_COMMIT_TAG" --repo "hahihula/rendir" --yes
         fi
 
         gh release create "$CI_COMMIT_TAG" \
           --title "Release $CI_COMMIT_TAG" \
           --notes "Release $CI_COMMIT_TAG - Automated release" \
-          --repo "hahihula/rustpress"
+          --repo "hahihula/rendir"
 
         echo "GitHub release created successfully!"
       else
@@ -199,7 +199,7 @@ docker:build:
   services:
     - docker:dind
   variables:
-    DOCKER_IMAGE: $DOCKERHUB_USERNAME/rustpress
+    DOCKER_IMAGE: $DOCKERHUB_USERNAME/rendir
   script:
     - docker build -t $DOCKER_IMAGE:latest .
     - docker tag $DOCKER_IMAGE:latest $DOCKER_IMAGE:$CI_COMMIT_TAG
@@ -215,7 +215,7 @@ docker:build:alpine:
   stage: docker
   extends: .docker:build:alpine
   variables:
-    DOCKER_IMAGE: $DOCKERHUB_USERNAME/rustpress-alpine
+    DOCKER_IMAGE: $DOCKERHUB_USERNAME/rendir-alpine
   only:
     - tags
   when: manual
@@ -225,7 +225,7 @@ docker:build:using-template:
   stage: docker
   extends: .docker:build:alpine
   variables:
-    DOCKER_IMAGE: $DOCKERHUB_USERNAME/rustpress
+    DOCKER_IMAGE: $DOCKERHUB_USERNAME/rendir
   only:
     - tags
   when: manual
@@ -241,7 +241,7 @@ pages:
     - curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
   script:
     - rustc --version && cargo --version && wasm-pack --version
-    - cd rustpress-wasm
+    - cd rendir-wasm
     - rm -rf dist
     - wasm-pack build --target web
     - mkdir ./dist

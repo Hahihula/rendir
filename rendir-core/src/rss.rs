@@ -51,7 +51,7 @@ impl RssFeed {
         append_xml(&mut xml, 2, "description", &self.description);
         append_xml(&mut xml, 2, "language", &self.language);
         append_xml(&mut xml, 2, "lastBuildDate", &self.last_build_date);
-        append_xml(&mut xml, 2, "generator", "Rustpress");
+        append_xml(&mut xml, 2, "generator", "Rendir");
         for item in &self.items {
             xml.push_str("    <item>\n");
             append_xml(&mut xml, 4, "title", &item.title);
@@ -365,7 +365,7 @@ mod tests {
             guid: "item.html".to_string(),
             content_html: None,
         });
-        let dir = std::env::temp_dir().join("rustpress_rss_test");
+        let dir = std::env::temp_dir().join("rendir_rss_test");
         let path = dir.join("feed.xml");
         feed.write_to_file(&path).unwrap();
         let content = std::fs::read_to_string(&path).unwrap();

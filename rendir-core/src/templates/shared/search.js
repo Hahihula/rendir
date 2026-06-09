@@ -1,4 +1,4 @@
-// Shared search engine for Rustpress Vue templates
+// Shared search engine for Rendir Vue templates
 // Provides ClientSearchIndex class and a Vue component that can be registered globally
 
 // ============================================================
@@ -74,7 +74,7 @@ class ClientSearchIndex {
 }
 
 // ============================================================
-// RustpressSearch — Vue 3 component for search input + results
+// RendirSearch — Vue 3 component for search input + results
 // ============================================================
 // Props:
 //   searchIndex (String) — JSON-serialized BuiltSearchIndex from Rust
@@ -84,8 +84,8 @@ class ClientSearchIndex {
 // Events:
 //   update:query — Emitted when the user types
 //   navigate(url) — Emitted when a result is clicked
-const RustpressSearch = {
-    name: 'RustpressSearch',
+const RendirSearch = {
+    name: 'RendirSearch',
     props: {
         searchIndex: { type: String, default: '' },
         placeholder: { type: String, default: 'Search...' },
@@ -101,7 +101,7 @@ const RustpressSearch = {
             try {
                 engine = new ClientSearchIndex(JSON.parse(props.searchIndex));
             } catch (e) {
-                console.error('RustpressSearch: parse error', e);
+                console.error('RendirSearch: parse error', e);
             }
         }
 
@@ -120,18 +120,18 @@ const RustpressSearch = {
         return { query, results, handleNavigate };
     },
     template: `
-        <div class="rustpress-search">
+        <div class="rendir-search">
             <input
                 type="text"
                 v-model="query"
                 :placeholder="placeholder"
                 autocomplete="off"
-                class="rustpress-search-input"
+                class="rendir-search-input"
             />
-            <div class="rustpress-search-results" v-if="results !== null">
+            <div class="rendir-search-results" v-if="results !== null">
                 <template v-if="results.length > 0">
                     <div v-for="r in results" :key="r.id"
-                         class="rustpress-search-result"
+                         class="rendir-search-result"
                          @click="handleNavigate(r.url)">
                         <div class="rst-sr-title">{{ r.title }}</div>
                         <div class="rst-sr-snippet" v-html="r.snippet"></div>
@@ -145,4 +145,4 @@ const RustpressSearch = {
 
 // Export for use in templates
 window.ClientSearchIndex = ClientSearchIndex;
-window.RustpressSearch = RustpressSearch;
+window.RendirSearch = RendirSearch;

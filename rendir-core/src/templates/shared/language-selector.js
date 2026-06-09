@@ -1,4 +1,4 @@
-// Language Selector Vue 3 component for Rustpress
+// Language Selector Vue 3 component for Rendir
 // Props:
 //   languages (Array) — List of { code, name, is_default }
 //   currentLang (String) — Currently active language code

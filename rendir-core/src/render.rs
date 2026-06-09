@@ -33,7 +33,7 @@ pub fn render_html(item: &ContentItem) -> String {
         .metadata
         .get("title")
         .cloned()
-        .unwrap_or_else(|| "Rustpress Page".to_string());
+        .unwrap_or_else(|| "Rendir Page".to_string());
 
     DEFAULT_HTML_TEMPLATE
         .replace("{{ title }}", &title)
@@ -53,7 +53,7 @@ pub fn render_with_template(
         .metadata
         .get("title")
         .cloned()
-        .unwrap_or_else(|| "Rustpress Page".to_string());
+        .unwrap_or_else(|| "Rendir Page".to_string());
 
     let author = item.metadata.get("author").cloned().unwrap_or_default();
     let date = item.metadata.get("date").cloned().unwrap_or_default();

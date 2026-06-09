@@ -1,11 +1,11 @@
-# Rustpress Examples
+# Rendir Examples
 
-This folder contains working examples for each rustpress feature.
+This folder contains working examples for each Rendir feature.
 
 ## Available Examples
 
 ### 1. Search (`search/`)
-Demonstrates rustpress's built-in search engine.
+Demonstrates Rendir's built-in search engine.
 - Pure Rust implementation (WASM compatible)
 - Pre-built index at compile/build time
 - Title boosting and snippet extraction
@@ -64,13 +64,13 @@ Run the CLI from the project root:
 
 ```bash
 # Build slideshow
-cargo run -p rustpress -- build \
+cargo run -p rendir -- build \
   --input examples/slideshow/content/presentation.md \
-  --output /tmp/rustpress-output/ \
+  --output /tmp/rendir-output/ \
   --template slideshow
 
 # Convert with custom template
-cargo run -p rustpress -- convert \
+cargo run -p rendir -- convert \
   --input examples/slideshow/content/presentation.md \
   --output /tmp/presentation.html \
   --template slideshow

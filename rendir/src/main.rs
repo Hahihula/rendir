@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use notify::{RecursiveMode, Watcher};
-use rustpress_core::components::{builtins::register_builtin_components, ComponentRegistry};
-use rustpress_core::{
+use rendir_core::components::{builtins::register_builtin_components, ComponentRegistry};
+use rendir_core::{
     get_builtin_template,
     i18n::I18nBuilder,
     mdbook::{BookToml, Chapter, Summary},
@@ -547,7 +547,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
         Vec::new()
     };
     let search_index = if search_index_len > 0 {
-        let mut idx = rustpress_core::search::SearchIndex::new();
+        let mut idx = rendir_core::search::SearchIndex::new();
         for doc in &search_docs {
             idx.add_document(doc.clone());
         }
@@ -889,7 +889,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
         let description = book_toml
             .as_ref()
             .and_then(|b| b.book.description.clone())
-            .unwrap_or_else(|| "Rustpress site".to_string());
+            .unwrap_or_else(|| "Rendir site".to_string());
 
         let mut feed = RssFeed::new(&feed_title, &description, "/");
 
@@ -1041,7 +1041,7 @@ fn run_build_i18n(
         }
 
         let search_index = if !search_docs.is_empty() {
-            let mut idx = rustpress_core::search::SearchIndex::new();
+            let mut idx = rendir_core::search::SearchIndex::new();
             for doc in &search_docs {
                 idx.add_document(doc.clone());
             }
@@ -1395,7 +1395,7 @@ fn handle_request(
     }
 
     // Special endpoint for live reload polling
-    if trimmed == "__rustpress_poll" {
+    if trimmed == "__rendir_poll" {
         let v = version.load(Ordering::SeqCst);
         let resp = Response::from_string(v.to_string())
             .with_header(Header::from_bytes(&b"Content-Type"[..], b"text/plain").unwrap());
@@ -1436,7 +1436,7 @@ fn handle_request(
             let lastVersion = {};
             async function checkVersion() {{
                 try {{
-                    const res = await fetch('/__rustpress_poll');
+                    const res = await fetch('/__rendir_poll');
                     const v = parseInt(await res.text(), 10);
                     if (v !== lastVersion) {{
                         lastVersion = v;

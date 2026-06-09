@@ -1,10 +1,10 @@
 # Search Example
 
-This example demonstrates how rustpress's built-in search works.
+This example demonstrates how Rendir's built-in search works.
 
 ## Overview
 
-rustpress includes a **pure Rust search engine** that works in both WASM and native environments. The search index is built at compile/build time and can be serialized to JSON for embedding in WASM binaries.
+Rendir includes a **pure Rust search engine** that works in both WASM and native environments. The search index is built at compile/build time and can be serialized to JSON for embedding in WASM binaries.
 
 **Key features:**
 - Pure Rust implementation (no external JS dependencies in WASM)
@@ -84,7 +84,7 @@ The default `DefaultSearchEngine` uses `BuiltSearchIndex`. You can implement you
 
 ## WASM Integration
 
-The search index is built at rustpress build time and serialized. In WASM:
+The search index is built at Rendir build time and serialized. In WASM:
 1. The serialized index bytes are embedded in the WASM binary
 2. On page load, the index is deserialized
 3. Search queries run entirely client-side in the browser
@@ -95,7 +95,7 @@ This means **no server required** — the search works from static hosting.
 
 ```bash
 # Build with search index
-cargo run -p rustpress -- build --input content/ --output site/
+cargo run -p rendir -- build --input content/ --output site/
 
 # The search index is embedded automatically
 ```
@@ -105,6 +105,7 @@ cargo run -p rustpress -- build --input content/ --output site/
 The search component can be embedded in any template. See `shared/search.html` for the search overlay/modal UI.
 
 ### Required Variables
+
 None — search is fully client-side after initial page load.
 
 ### CSS Classes

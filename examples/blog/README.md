@@ -1,6 +1,6 @@
 # Blog Example
 
-This example demonstrates rustpress's blog template functionality.
+This example demonstrates Rendir's blog template functionality.
 
 ## Structure
 
@@ -92,7 +92,7 @@ tags: rust, web, tutorial
 ### Build entire blog:
 
 ```bash
-cargo run -p rustpress -- build \
+cargo run -p rendir -- build \
   --input examples/blog/content/ \
   --output /tmp/blog/ \
   --template blog
@@ -101,7 +101,7 @@ cargo run -p rustpress -- build \
 ### Convert single post:
 
 ```bash
-cargo run -p rustpress -- convert \
+cargo run -p rendir -- convert \
   --input content/posts/2024-01-15-welcome.md \
   --output output/post.html \
   --template blog
@@ -119,7 +119,7 @@ The landing page is a Vue.js SPA with:
 
 ### Creating Custom Blog Templates
 
-Copy `rustpress-core/src/templates/blog/` to your own folder:
+Copy `rendir-core/src/templates/blog/` to your own folder:
 
 ```
 my-templates/blog/
