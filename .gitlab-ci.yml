@@ -106,11 +106,12 @@ release:crates-io:cli:
 
 # Step 3: build and publish WASM to npm
 # TEMPORARILY DISABLED for v0.1.0 — the npmjs.com account has 2FA enabled
-# and the CI token cannot supply an OTP. The job name is suffixed with
-# '.disabled' and given `when: never` so it is never scheduled; this keeps
-# the job definition around for when 2FA is sorted out. To re-enable:
-# rename to `release:npm:wasm` and remove the `when: never` line.
-release:npm:wasm.disabled:
+# and the CI token cannot supply an OTP. Job name starts with a leading dot
+# (`.release:npm:wasm`) which makes it a "hidden job" in GitLab CI: the
+# definition is kept in this file for future reference but it is never
+# scheduled. To re-enable: rename to `release:npm:wasm` (drop the leading
+# dot) — no other change is needed, `when` defaults to `on_success`.
+.release:npm:wasm:
   stage: release-crate
   image: rustlang/rust:nightly
   needs:
@@ -151,7 +152,6 @@ release:npm:wasm.disabled:
     expire_in: 1 week
   only:
     - tags
-  when: never
 
 release:gitlab:
   stage: release
