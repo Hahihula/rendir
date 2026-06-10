@@ -81,6 +81,10 @@ release:crates-io:core:
     - cargo publish --allow-dirty
   only:
     - tags
+  # allow_failure so re-pushing the same tag (e.g. to fix a Docker-only
+  # problem) does not break the rest of the pipeline. The publish either
+  # succeeds or surfaces a clear error in the job log.
+  allow_failure: true
 
 # Step 2: publish rendir CLI — depends on core being on the registry
 release:crates-io:cli:
@@ -98,9 +102,15 @@ release:crates-io:cli:
     - cargo publish --allow-dirty
   only:
     - tags
+  allow_failure: true
 
 # Step 3: build and publish WASM to npm
-release:npm:wasm:
+# TEMPORARILY DISABLED for v0.1.0 — the npmjs.com account has 2FA enabled
+# and the CI token cannot supply an OTP. The job name is suffixed with
+# '.disabled' and given `when: never` so it is never scheduled; this keeps
+# the job definition around for when 2FA is sorted out. To re-enable:
+# rename to `release:npm:wasm` and remove the `when: never` line.
+release:npm:wasm.disabled:
   stage: release-crate
   image: rustlang/rust:nightly
   needs:
@@ -126,7 +136,7 @@ release:npm:wasm:
         pkg.name = 'rendir-wasm';
         pkg.version = '$WASM_VERSION';
         pkg.description = 'WebAssembly bindings for rendir-core — convert Markdown to Vue 3 SPAs in the browser';
-        pkg.keywords = ['rendir', 'wasm', 'markdown', 'vue', 'static-site-generator'];
+        pkg.keywords = ['rendir', 'wasm', 'markdown', 'vue', 'static-site'];
         pkg.license = 'MIT';
         pkg.repository = { type: 'git', url: 'https://gitlab.com/hahihula/rendir' };
         fs.writeFileSync('pkg-npm/package.json', JSON.stringify(pkg, null, 2));
@@ -141,6 +151,7 @@ release:npm:wasm:
     expire_in: 1 week
   only:
     - tags
+  when: never
 
 release:gitlab:
   stage: release
