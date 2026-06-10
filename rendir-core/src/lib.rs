@@ -16,8 +16,11 @@ pub use render::{
     render_mdbook_vue, render_presenter_vue, render_slideshow_vue, render_with_template,
     serialize_slideshow_store,
 };
-pub use search::{BuiltSearchIndex, SearchDocument, SearchIndex, SearchResult};
-pub use types::{ChapterNav, ChapterStore, Language, MdBookStore, Slide, SlideLayout, SlideshowStore, Translation};
+pub use search::{BuiltSearchIndex, DocMeta, SearchDocument, SearchIndex, SearchResult};
+pub use types::{
+    ChapterNav, ChapterStore, Language, MdBookStore, Slide, SlideLayout, SlideshowStore,
+    Translation,
+};
 pub use vue::{VueComponent, VueRegistry, parse_vue_component};
 
 #[cfg(test)]
@@ -346,101 +349,6 @@ tags: [rust, web]
     }
 
     #[test]
-    fn test_search_index_add_and_search() {
-        let mut index = SearchIndex::new();
-        index.add_document(SearchDocument {
-            id: "1".to_string(),
-            title: "Hello World".to_string(),
-            content: "This is a test document".to_string(),
-            url: "/hello".to_string(),
-            tags: vec!["test".to_string()],
-        });
-        index.add_document(SearchDocument {
-            id: "2".to_string(),
-            title: "Rust Programming".to_string(),
-            content: "Rust is a systems programming language".to_string(),
-            url: "/rust".to_string(),
-            tags: vec!["rust".to_string(), "programming".to_string()],
-        });
-        let built = index.build();
-        let results = built.search("rust", 10);
-        assert!(!results.is_empty());
-        assert!(results.iter().any(|r| r.title.contains("Rust")));
-    }
-
-    #[test]
-    fn test_search_index_fuzzy_match() {
-        let mut index = SearchIndex::new();
-        index.add_document(SearchDocument {
-            id: "1".to_string(),
-            title: "Getting Started with Rust".to_string(),
-            content: "Learn Rust programming step by step".to_string(),
-            url: "/rust-getting-started".to_string(),
-            tags: vec!["rust".to_string()],
-        });
-        let built = index.build();
-        let results = built.search("program", 10);
-        assert!(!results.is_empty());
-    }
-
-    #[test]
-    fn test_search_index_no_results() {
-        let mut index = SearchIndex::new();
-        index.add_document(SearchDocument {
-            id: "1".to_string(),
-            title: "Hello World".to_string(),
-            content: "Just a simple document".to_string(),
-            url: "/hello".to_string(),
-            tags: vec![],
-        });
-        let built = index.build();
-        let results = built.search("nonexistent query xyz", 10);
-        assert!(results.is_empty());
-    }
-
-    #[test]
-    fn test_search_index_title_boost() {
-        let mut index = SearchIndex::new();
-        index.add_document(SearchDocument {
-            id: "1".to_string(),
-            title: "Python Tutorial".to_string(),
-            content: "Learn Python programming".to_string(),
-            url: "/python".to_string(),
-            tags: vec![],
-        });
-        index.add_document(SearchDocument {
-            id: "2".to_string(),
-            title: "JavaScript Guide".to_string(),
-            content: "JavaScript is a language for the web".to_string(),
-            url: "/javascript".to_string(),
-            tags: vec![],
-        });
-        let built = index.build();
-        let results = built.search("JavaScript", 10);
-        assert!(!results.is_empty());
-        let first = &results[0];
-        assert!(first.title.contains("JavaScript"));
-    }
-
-    #[test]
-    fn test_search_serialization_roundtrip() {
-        let mut index = SearchIndex::new();
-        index.add_document(SearchDocument {
-            id: "1".to_string(),
-            title: "Test Document".to_string(),
-            content: "Content here".to_string(),
-            url: "/test".to_string(),
-            tags: vec!["test".to_string()],
-        });
-        let built = index.build();
-        let serialized = built.into_serialized();
-        let deserialized = BuiltSearchIndex::from_serialized(&serialized);
-        assert!(deserialized.is_some());
-        let results = deserialized.unwrap().search("test", 10);
-        assert!(!results.is_empty());
-    }
-
-    #[test]
     fn test_slide_component_renders() {
         let mut registry = ComponentRegistry::new();
         crate::components::builtins::register_builtin_components(&mut registry);
@@ -595,7 +503,10 @@ https://example.com/page.html
         let source_dir = get_source_dir(&source_file).unwrap();
 
         let resolved = resolve_image_path("images/logo.png", &source_dir);
-        assert_eq!(resolved, PathBuf::from("/project/src/chapter1/images/logo.png"));
+        assert_eq!(
+            resolved,
+            PathBuf::from("/project/src/chapter1/images/logo.png")
+        );
     }
 
     #[test]

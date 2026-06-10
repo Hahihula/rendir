@@ -1,23 +1,25 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use notify::{RecursiveMode, Watcher};
-use rendir_core::components::{builtins::register_builtin_components, ComponentRegistry};
+use rendir_core::components::{ComponentRegistry, builtins::register_builtin_components};
 use rendir_core::{
     get_builtin_template,
     i18n::I18nBuilder,
     mdbook::{BookToml, Chapter, Summary},
     parse_markdown_with_path, render_blog_index_vue, render_html, render_mdbook_vue,
     render_slideshow_vue, render_with_template,
-    rss::{parse_date_to_rfc2822, strip_html, RssFeed, RssItem},
+    rss::{RssFeed, RssItem, parse_date_to_rfc2822, strip_html},
     search::SearchDocument,
-    types::{BlogIndexStore, BlogPostSummary, ChapterNav, ChapterStore, ContentItem, Language, TagCount},
+    types::{
+        BlogIndexStore, BlogPostSummary, ChapterNav, ChapterStore, ContentItem, Language, TagCount,
+    },
 };
 use std::fs::{self, File};
 use std::io::{Cursor, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::channel;
-use std::sync::Arc;
 use std::time::Duration;
 use tiny_http::{Header, Response, Server};
 use walkdir::WalkDir;
@@ -79,6 +81,12 @@ enum Commands {
         /// Custom HTML template file or builtin template name (e.g., slideshow)
         #[arg(short, long)]
         template: Option<PathBuf>,
+
+        /// Enable verbose diagnostic logging to /tmp/*.txt. Off by default
+        /// in production; used during development to inspect intermediate
+        /// build state (src dir resolution, chapter matching, etc.).
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
     },
     /// Watch the input/template for changes, rebuild on change, and serve the result locally
     Dev {
@@ -97,6 +105,12 @@ enum Commands {
         /// Port for the local dev server
         #[arg(short, long, default_value_t = 3000)]
         port: u16,
+
+        /// Enable verbose diagnostic logging to /tmp/*.txt. Off by default
+        /// in production; used during development to inspect intermediate
+        /// build state.
+        #[arg(long, default_value_t = false)]
+        verbose: bool,
     },
 }
 
@@ -153,7 +167,8 @@ fn scan_markdown_dir(
 
         if path.is_file() && path.extension().is_some_and(|ext| ext == "md") {
             let content = fs::read_to_string(path)?;
-            let item = parse_markdown_with_path(&content, Some(registry), Some(PathBuf::from(path)));
+            let item =
+                parse_markdown_with_path(&content, Some(registry), Some(PathBuf::from(path)));
 
             let rel_path = path.strip_prefix(src_dir).unwrap_or(path);
             let rel_path_str = rel_path.to_string_lossy().replace(".md", "");
@@ -185,7 +200,11 @@ fn scan_markdown_dir(
 
             search_docs.push(SearchDocument {
                 id,
-                title: item.metadata.get("title").cloned().unwrap_or_else(|| file_stem.clone()),
+                title: item
+                    .metadata
+                    .get("title")
+                    .cloned()
+                    .unwrap_or_else(|| file_stem.clone()),
                 content: plain_content,
                 url,
                 tags: vec![],
@@ -247,6 +266,7 @@ fn build_chapter_store(
     current_idx: usize,
     content: String,
     all_items: &[SiteItem],
+    plain_text_map: &std::collections::HashMap<String, String>,
 ) -> ChapterStore {
     let url = chapter
         .path
@@ -295,17 +315,35 @@ fn build_chapter_store(
                 .unwrap_or(current_idx);
             let child_content = all_items
                 .iter()
-                .find(|item| item.rel_path_str().replace("src/", "") == child.path.to_string_lossy().replace(".md", "").replace("src/", ""))
+                .find(|item| {
+                    item.rel_path_str().replace("src/", "")
+                        == child
+                            .path
+                            .to_string_lossy()
+                            .replace(".md", "")
+                            .replace("src/", "")
+                })
                 .map(|item| item.rendered.clone())
                 .unwrap_or_default();
-            build_chapter_store(child, all_chapters, child_idx, child_content, all_items)
+            build_chapter_store(
+                child,
+                all_chapters,
+                child_idx,
+                child_content,
+                all_items,
+                plain_text_map,
+            )
         })
         .collect();
 
     ChapterStore {
         title: chapter.title.clone(),
-        url,
+        url: url.clone(),
         content,
+        plain_text: plain_text_map
+            .get(&url.replace(".html", ""))
+            .cloned()
+            .unwrap_or_default(),
         level: chapter.level,
         children,
         prev_chapter,
@@ -315,7 +353,11 @@ fn build_chapter_store(
 }
 
 /// Build all chapters as ChapterStore for Vue SPA
-fn build_all_chapter_stores(chapters: &[Chapter], all_items: &[SiteItem]) -> Vec<ChapterStore> {
+fn build_all_chapter_stores(
+    chapters: &[Chapter],
+    all_items: &[SiteItem],
+    plain_text_map: &std::collections::HashMap<String, String>,
+) -> Vec<ChapterStore> {
     let all = get_all_chapters(chapters);
     let all_refs: Vec<&Chapter> = all.to_vec();
 
@@ -325,10 +367,17 @@ fn build_all_chapter_stores(chapters: &[Chapter], all_items: &[SiteItem]) -> Vec
         .map(|(idx, ch)| {
             let content = all_items
                 .iter()
-                .find(|item| item.rel_path_str().replace("src/", "") == ch.path.to_string_lossy().replace(".md", "").replace("src/", ""))
+                .find(|item| {
+                    item.rel_path_str().replace("src/", "")
+                        == ch
+                            .path
+                            .to_string_lossy()
+                            .replace(".md", "")
+                            .replace("src/", "")
+                })
                 .map(|item| item.rendered.clone())
                 .unwrap_or_default();
-            build_chapter_store(ch, &all_refs, idx, content, all_items)
+            build_chapter_store(ch, &all_refs, idx, content, all_items, plain_text_map)
         })
         .collect()
 }
@@ -430,7 +479,7 @@ fn create_index_page(dir: &Path) -> Result<()> {
 ///
 /// This is the same logic the `build` command uses; the `dev` command calls it
 /// directly on every detected change rather than reimplementing it.
-fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<()> {
+fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>, verbose: bool) -> Result<()> {
     let mut registry = ComponentRegistry::new();
     register_builtin_components(&mut registry);
 
@@ -464,13 +513,19 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
         }
     });
 
-    std::fs::write("/tmp/src_dir_debug.txt", format!(
-        "input='{}', book_toml_src='{:?}', src_dir='{}', SUMMARY exists={}\n",
-        input.display(),
-        book_toml.as_ref().map(|b| b.book.src.as_str()),
-        src_dir.display(),
-        src_dir.join("SUMMARY.md").exists()
-    )).ok();
+    if verbose {
+        std::fs::write(
+            "/tmp/src_dir_debug.txt",
+            format!(
+                "input='{}', book_toml_src='{:?}', src_dir='{}', SUMMARY exists={}\n",
+                input.display(),
+                book_toml.as_ref().map(|b| b.book.src.as_str()),
+                src_dir.display(),
+                src_dir.join("SUMMARY.md").exists()
+            ),
+        )
+        .ok();
+    }
 
     let summary = src_dir
         .join("SUMMARY.md")
@@ -527,23 +582,40 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
 
     let (search_docs, all_items) = scan_markdown_dir(&src_dir, output, &registry, None)?;
 
+    // Build a lookup from doc id (rel_path_str) -> plain_text for populating
+    // BlogPostSummary.content and ChapterStore.plain_text
+    let mut plain_text_map: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    for doc in &search_docs {
+        plain_text_map.insert(doc.id.clone(), doc.content.clone());
+    }
+
     let search_index_len = search_docs.len();
 
     // Build ChapterStore data for Vue SPA (mdbook template)
     let chapter_stores: Vec<ChapterStore> = if let Some(ref summary) = summary {
-        let stores = build_all_chapter_stores(&summary.chapters, &all_items);
-        std::fs::write("/tmp/chapters_build.txt", format!(
-            "HAS SUMMARY - Summary chapters: {}, Built {} stores, Items: {}\n",
-            summary.chapters.len(),
-            stores.len(),
-            all_items.len()
-        )).ok();
+        let stores = build_all_chapter_stores(&summary.chapters, &all_items, &plain_text_map);
+        if verbose {
+            std::fs::write(
+                "/tmp/chapters_build.txt",
+                format!(
+                    "HAS SUMMARY - Summary chapters: {}, Built {} stores, Items: {}\n",
+                    summary.chapters.len(),
+                    stores.len(),
+                    all_items.len()
+                ),
+            )
+            .ok();
+        }
         stores
     } else {
-        std::fs::write("/tmp/chapters_build.txt", format!(
-            "NO SUMMARY - all_items: {}\n",
-            all_items.len()
-        )).ok();
+        if verbose {
+            std::fs::write(
+                "/tmp/chapters_build.txt",
+                format!("NO SUMMARY - all_items: {}\n", all_items.len()),
+            )
+            .ok();
+        }
         Vec::new()
     };
     let search_index = if search_index_len > 0 {
@@ -569,7 +641,8 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
         let posts: Vec<BlogPostSummary> = all_posts
             .iter()
             .map(|item| {
-                let post_tags: Vec<String> = item.metadata
+                let post_tags: Vec<String> = item
+                    .metadata
                     .get("tags")
                     .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                     .unwrap_or_default();
@@ -579,6 +652,10 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     date: item.metadata.get("date").cloned().unwrap_or_default(),
                     author: item.metadata.get("author").cloned().unwrap_or_default(),
                     excerpt: String::new(),
+                    content: plain_text_map
+                        .get(&item.rel_path_str())
+                        .cloned()
+                        .unwrap_or_default(),
                     tags: post_tags,
                     url: format!("{}.html", item.rel_path_str()),
                 }
@@ -608,7 +685,12 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                 date: item.metadata.get("date").cloned().unwrap_or_default(),
                 author: item.metadata.get("author").cloned().unwrap_or_default(),
                 excerpt: String::new(),
-                tags: item.metadata
+                content: plain_text_map
+                    .get(&item.rel_path_str())
+                    .cloned()
+                    .unwrap_or_default(),
+                tags: item
+                    .metadata
                     .get("tags")
                     .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                     .unwrap_or_default(),
@@ -651,10 +733,12 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                 render_blog_index_vue(&landing_page_store)
             } else if is_mdbook {
                 let all_chapters_flat = flatten_chapter_stores(&chapter_stores);
-                std::fs::write("/tmp/mdbook_render.txt", format!(
-                    "MDbook render - rel_path_str='{}', chapter_stores len={}, all_chapters_flat len={}\n",
-                    rel_path_str, chapter_stores.len(), all_chapters_flat.len()
-                )).ok();
+                if verbose {
+                    std::fs::write("/tmp/mdbook_render.txt", format!(
+                        "MDbook render - rel_path_str='{}', chapter_stores len={}, all_chapters_flat len={}\n",
+                        rel_path_str, chapter_stores.len(), all_chapters_flat.len()
+                    )).ok();
+                }
                 let matching = all_chapters_flat
                     .iter()
                     .filter(|ch| {
@@ -662,12 +746,20 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                             || rel_path_str.ends_with(&ch.url.replace(".html", ""))
                     })
                     .collect::<Vec<_>>();
-                if matching.is_empty() && rel_path_str.contains("SUMMARY") {
-                    std::fs::write("/tmp/chapters_match.txt", format!(
-                        "NO MATCH for '{}'\nAll chapters:\n{}\n",
-                        rel_path_str,
-                        all_chapters_flat.iter().map(|c| format!("  {}: {}", c.url, c.title)).collect::<Vec<_>>().join("\n")
-                    )).ok();
+                if matching.is_empty() && rel_path_str.contains("SUMMARY") && verbose {
+                    std::fs::write(
+                        "/tmp/chapters_match.txt",
+                        format!(
+                            "NO MATCH for '{}'\nAll chapters:\n{}\n",
+                            rel_path_str,
+                            all_chapters_flat
+                                .iter()
+                                .map(|c| format!("  {}: {}", c.url, c.title))
+                                .collect::<Vec<_>>()
+                                .join("\n")
+                        ),
+                    )
+                    .ok();
                 }
                 let current_store = matching.into_iter().next().cloned();
                 if let Some(current) = current_store {
@@ -723,7 +815,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
-                            remote_references: vec![],
+                    remote_references: vec![],
                     language: None,
                     translations: Vec::new(),
                     is_fallback: false,
@@ -738,7 +830,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
-                            remote_references: vec![],
+                    remote_references: vec![],
                     language: None,
                     translations: Vec::new(),
                     is_fallback: false,
@@ -753,7 +845,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
-                            remote_references: vec![],
+                    remote_references: vec![],
                     language: None,
                     translations: Vec::new(),
                     is_fallback: false,
@@ -769,7 +861,7 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                 rendered_content: Some(item.rendered.clone()),
                 related_items: vec![],
                 image_references: vec![],
-                            remote_references: vec![],
+                remote_references: vec![],
                 language: None,
                 translations: Vec::new(),
                 is_fallback: false,
@@ -792,7 +884,9 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                     let relative_to_content = asset_path
                         .strip_prefix(src_dir.as_path())
                         .unwrap_or(asset_path.as_path());
-                    let asset_relative = if item.rel_path.parent().is_some() && item.rel_path.parent() != Some(Path::new("")) {
+                    let asset_relative = if item.rel_path.parent().is_some()
+                        && item.rel_path.parent() != Some(Path::new(""))
+                    {
                         let components: Vec<_> = relative_to_content.components().collect();
                         if components.len() > 1 {
                             PathBuf::from_iter(components[1..].iter())
@@ -807,9 +901,15 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
                         fs::create_dir_all(dest_parent).ok();
                     }
                     if !dest.exists() {
-                        fs::copy(asset_path, &dest).map_err(|e| {
-                            eprintln!("Warning: Failed to copy asset '{}': {}", asset_path.display(), e);
-                        }).ok();
+                        fs::copy(asset_path, &dest)
+                            .map_err(|e| {
+                                eprintln!(
+                                    "Warning: Failed to copy asset '{}': {}",
+                                    asset_path.display(),
+                                    e
+                                );
+                            })
+                            .ok();
                     }
                 }
             }
@@ -904,7 +1004,8 @@ fn run_build(input: &Path, output: &Path, template: &Option<PathBuf>) -> Result<
             let title = item.metadata.get("title").cloned().unwrap_or_default();
             let date_str = item.metadata.get("date").cloned().unwrap_or_default();
             let author = item.metadata.get("author").cloned();
-            let tags: Vec<String> = item.metadata
+            let tags: Vec<String> = item
+                .metadata
                 .get("tags")
                 .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                 .unwrap_or_default();
@@ -1001,17 +1102,17 @@ fn run_build_i18n(
             continue;
         }
 
-        let (mut search_docs, mut all_items) = scan_markdown_dir(&lang_src_dir, &lang_output, &registry, Some(&lang.code))?;
+        let (mut search_docs, mut all_items) =
+            scan_markdown_dir(&lang_src_dir, &lang_output, &registry, Some(&lang.code))?;
 
         for fallback_lang in languages {
             let fallback_dir = src_dir.join(&fallback_lang.code);
             if fallback_dir.exists() && fallback_dir != lang_src_dir {
-                let existing_paths: Vec<String> = all_items
-                    .iter()
-                    .map(|item| item.rel_path_str())
-                    .collect();
+                let existing_paths: Vec<String> =
+                    all_items.iter().map(|item| item.rel_path_str()).collect();
 
-                let (fallback_docs, fallback_items) = scan_markdown_dir(&fallback_dir, &lang_output, &registry, Some(&lang.code))?;
+                let (fallback_docs, fallback_items) =
+                    scan_markdown_dir(&fallback_dir, &lang_output, &registry, Some(&lang.code))?;
 
                 for (doc, item) in fallback_docs.into_iter().zip(fallback_items.into_iter()) {
                     if !existing_paths.contains(&item.rel_path_str())
@@ -1040,6 +1141,13 @@ fn run_build_i18n(
             }
         }
 
+        // Build a lookup from doc id -> plain_text for populating BlogPostSummary.content
+        let mut plain_text_map: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
+        for doc in &search_docs {
+            plain_text_map.insert(doc.id.clone(), doc.content.clone());
+        }
+
         let search_index = if !search_docs.is_empty() {
             let mut idx = rendir_core::search::SearchIndex::new();
             for doc in &search_docs {
@@ -1062,7 +1170,8 @@ fn run_build_i18n(
         let posts: Vec<BlogPostSummary> = all_posts
             .iter()
             .map(|item| {
-                let post_tags: Vec<String> = item.metadata
+                let post_tags: Vec<String> = item
+                    .metadata
                     .get("tags")
                     .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                     .unwrap_or_default();
@@ -1072,6 +1181,10 @@ fn run_build_i18n(
                     date: item.metadata.get("date").cloned().unwrap_or_default(),
                     author: item.metadata.get("author").cloned().unwrap_or_default(),
                     excerpt: String::new(),
+                    content: plain_text_map
+                        .get(&item.rel_path_str())
+                        .cloned()
+                        .unwrap_or_default(),
                     tags: post_tags,
                     url: format!("{}.html", item.rel_path_str()),
                 }
@@ -1101,7 +1214,12 @@ fn run_build_i18n(
                 date: item.metadata.get("date").cloned().unwrap_or_default(),
                 author: item.metadata.get("author").cloned().unwrap_or_default(),
                 excerpt: String::new(),
-                tags: item.metadata
+                content: plain_text_map
+                    .get(&item.rel_path_str())
+                    .cloned()
+                    .unwrap_or_default(),
+                tags: item
+                    .metadata
                     .get("tags")
                     .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
                     .unwrap_or_default(),
@@ -1146,7 +1264,7 @@ fn run_build_i18n(
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
-                            remote_references: vec![],
+                    remote_references: vec![],
                     language: Some(lang.code.clone()),
                     translations,
                     is_fallback: item.is_fallback,
@@ -1168,13 +1286,12 @@ fn run_build_i18n(
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
-                            remote_references: vec![],
+                    remote_references: vec![],
                     language: Some(lang.code.clone()),
                     translations,
                     is_fallback: item.is_fallback,
                 };
-                let template_content =
-                    get_builtin_template("blog/post").unwrap_or_default();
+                let template_content = get_builtin_template("blog/post").unwrap_or_default();
                 render_with_template(&content_item, "blog/post", template_content)
             } else {
                 let content_item = ContentItem {
@@ -1184,13 +1301,12 @@ fn run_build_i18n(
                     rendered_content: Some(item.rendered.clone()),
                     related_items: vec![],
                     image_references: vec![],
-                            remote_references: vec![],
+                    remote_references: vec![],
                     language: Some(lang.code.clone()),
                     translations,
                     is_fallback: item.is_fallback,
                 };
-                let template_content =
-                    get_builtin_template("blog/index").unwrap_or_default();
+                let template_content = get_builtin_template("blog/index").unwrap_or_default();
                 render_with_template(&content_item, "blog/index", template_content)
             };
 
@@ -1207,7 +1323,11 @@ fn run_build_i18n(
         }
 
         if is_slideshow {
-            if is_i18n_landing(&all_items) || all_items.iter().any(|item| item.rel_path_str() == "presentation") {
+            if is_i18n_landing(&all_items)
+                || all_items
+                    .iter()
+                    .any(|item| item.rel_path_str() == "presentation")
+            {
                 let index_html = format!(
                     r#"<!DOCTYPE html>
 <html lang="{}">
@@ -1298,18 +1418,16 @@ fn run_build_i18n(
             book_title,
             languages
                 .iter()
-                .map(|l| {
-                    format!(
-                        "<li><a href=\"/{}/\">{}</a></li>",
-                        l.code, l.name
-                    )
-                })
+                .map(|l| { format!("<li><a href=\"/{}/\">{}</a></li>", l.code, l.name) })
                 .collect::<Vec<_>>()
                 .join("\n        ")
         )
     };
     fs::write(output.join("index.html"), root_index)?;
-    println!("Generated: {}/index.html (language selector)", output.display());
+    println!(
+        "Generated: {}/index.html (language selector)",
+        output.display()
+    );
 
     println!("i18n Build completed successfully.");
     Ok(())
@@ -1501,26 +1619,26 @@ fn event_is_relevant(res: &notify::Result<notify::Event>, output_abs: Option<&Pa
 
     if let Some(out) = output_abs
         && !event.paths.is_empty()
-            && event.paths.iter().all(|p| {
-                p.canonicalize()
-                    .map(|cp| cp.starts_with(out))
-                    .unwrap_or_else(|_| p.starts_with(out))
-            })
-        {
-            return false;
-        }
+        && event.paths.iter().all(|p| {
+            p.canonicalize()
+                .map(|cp| cp.starts_with(out))
+                .unwrap_or_else(|_| p.starts_with(out))
+        })
+    {
+        return false;
+    }
 
     true
 }
 
 /// Watch input/template, rebuild on change, and serve `output` over HTTP.
-fn run_dev(input: &Path, output: &Path, template: &Option<PathBuf>, port: u16) -> Result<()> {
+fn run_dev(input: &Path, output: &Path, template: &Option<PathBuf>, port: u16, verbose: bool) -> Result<()> {
     // Version counter for live reload - incremented after each rebuild.
     let version = Arc::new(AtomicUsize::new(0));
     let version_clone = Arc::clone(&version);
 
     // Initial build (don't bail on failure — let the watcher recover).
-    if run_build(input, output, template).is_ok() {
+    if run_build(input, output, template, verbose).is_ok() {
         version_clone.fetch_add(1, Ordering::SeqCst);
     }
 
@@ -1554,15 +1672,16 @@ fn run_dev(input: &Path, output: &Path, template: &Option<PathBuf>, port: u16) -
     println!("Watching: {}", input.display());
 
     if let Some(tmpl) = template
-        && tmpl.exists() {
-            let mode = if tmpl.is_dir() {
-                RecursiveMode::Recursive
-            } else {
-                RecursiveMode::NonRecursive
-            };
-            watcher.watch(tmpl, mode)?;
-            println!("Watching: {}", tmpl.display());
-        }
+        && tmpl.exists()
+    {
+        let mode = if tmpl.is_dir() {
+            RecursiveMode::Recursive
+        } else {
+            RecursiveMode::NonRecursive
+        };
+        watcher.watch(tmpl, mode)?;
+        println!("Watching: {}", tmpl.display());
+    }
 
     let output_abs = output.canonicalize().ok();
     let version_for_build = Arc::clone(&version);
@@ -1585,7 +1704,7 @@ fn run_dev(input: &Path, output: &Path, template: &Option<PathBuf>, port: u16) -
         }
 
         println!("Change detected, rebuilding...");
-        match run_build(input, output, template) {
+        match run_build(input, output, template, verbose) {
             Ok(_) => {
                 version_for_build.fetch_add(1, Ordering::SeqCst);
                 println!("Rebuild complete.\n")
@@ -1659,7 +1778,10 @@ fn main() -> Result<()> {
                             if !dest.exists() {
                                 match download_remote_asset(remote_url, &dest) {
                                     Ok(_) => println!("Downloaded remote asset: {}", remote_url),
-                                    Err(e) => eprintln!("Warning: Failed to download '{}': {}", remote_url, e),
+                                    Err(e) => eprintln!(
+                                        "Warning: Failed to download '{}': {}",
+                                        remote_url, e
+                                    ),
                                 }
                             }
                         }
@@ -1673,8 +1795,9 @@ fn main() -> Result<()> {
             input,
             output,
             template,
+            verbose,
         } => {
-            run_build(input, output, template)?;
+            run_build(input, output, template, *verbose)?;
         }
 
         Commands::Dev {
@@ -1682,8 +1805,9 @@ fn main() -> Result<()> {
             output,
             template,
             port,
+            verbose,
         } => {
-            run_dev(input, output, template, *port)?;
+            run_dev(input, output, template, *port, *verbose)?;
         }
     }
 

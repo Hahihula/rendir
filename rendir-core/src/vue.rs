@@ -90,25 +90,28 @@ pub fn parse_vue_component(content: &str, name: &str) -> Result<VueComponent, &'
 
     // Find <template> section
     if let Some(template_start) = content.find("<template>")
-        && let Some(template_end) = content.find("</template>") {
-            template = Some(
-                content[template_start + 10..template_end]
-                    .trim()
-                    .to_string(),
-            );
-        }
+        && let Some(template_end) = content.find("</template>")
+    {
+        template = Some(
+            content[template_start + 10..template_end]
+                .trim()
+                .to_string(),
+        );
+    }
 
     // Find <script> section
     if let Some(script_start) = content.find("<script>")
-        && let Some(script_end) = content.find("</script>") {
-            script = Some(content[script_start + 8..script_end].trim().to_string());
-        }
+        && let Some(script_end) = content.find("</script>")
+    {
+        script = Some(content[script_start + 8..script_end].trim().to_string());
+    }
 
     // Find <style> section
     if let Some(style_start) = content.find("<style>")
-        && let Some(style_end) = content.find("</style>") {
-            style = Some(content[style_start + 7..style_end].trim().to_string());
-        }
+        && let Some(style_end) = content.find("</style>")
+    {
+        style = Some(content[style_start + 7..style_end].trim().to_string());
+    }
 
     if let Some(template_str) = template {
         Ok(VueComponent {

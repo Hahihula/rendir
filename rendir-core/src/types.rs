@@ -171,6 +171,8 @@ pub struct BlogPostSummary {
     pub date: String,
     pub author: String,
     pub excerpt: String,
+    #[serde(default)]
+    pub content: String,
     pub tags: Vec<String>,
     pub url: String,
 }
@@ -200,6 +202,8 @@ pub struct ChapterStore {
     pub title: String,
     pub url: String,
     pub content: String,
+    #[serde(default)]
+    pub plain_text: String,
     pub level: usize,
     pub children: Vec<ChapterStore>,
     pub prev_chapter: Option<ChapterNav>,

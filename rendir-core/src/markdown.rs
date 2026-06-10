@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 fn process_components(content: &str, registry: &ComponentRegistry) -> String {
     let opening_tag_regex = Regex::new(r"<([A-Z][A-Za-z0-9]+)(\s+[^>]*)?(?:/>|>)").unwrap();
     let attr_regex = Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)""#).unwrap();
-    let md_attr_regex = Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)"|([a-zA-Z0-9_-]+)=([^"\s]+)"#).unwrap();
+    let md_attr_regex =
+        Regex::new(r#"([a-zA-Z0-9_-]+)="([^"]*)"|([a-zA-Z0-9_-]+)=([^"\s]+)"#).unwrap();
 
     let mut result = content.to_string();
     let mut replacements = Vec::new();
@@ -133,23 +134,24 @@ fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
 
             // Parse YAML frontmatter
             if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter)
-                && let Some(map) = yaml_map.as_mapping() {
-                    for (key, value) in map {
-                        if let Some(key_str) = key.as_str() {
-                            let value_str = if let Some(seq) = value.as_sequence() {
-                                seq.iter()
-                                    .filter_map(|v| v.as_str())
-                                    .collect::<Vec<_>>()
-                                    .join(",")
-                            } else {
-                                value.as_str().unwrap_or_default().to_string()
-                            };
-                            if !value_str.is_empty() {
-                                metadata.insert(key_str.to_string(), value_str);
-                            }
+                && let Some(map) = yaml_map.as_mapping()
+            {
+                for (key, value) in map {
+                    if let Some(key_str) = key.as_str() {
+                        let value_str = if let Some(seq) = value.as_sequence() {
+                            seq.iter()
+                                .filter_map(|v| v.as_str())
+                                .collect::<Vec<_>>()
+                                .join(",")
+                        } else {
+                            value.as_str().unwrap_or_default().to_string()
+                        };
+                        if !value_str.is_empty() {
+                            metadata.insert(key_str.to_string(), value_str);
                         }
                     }
                 }
+            }
             return (metadata, &content[content_start..]);
         } else if let Some(end_index) = stripped.find("\r\n---\r\n") {
             // Handle Windows line endings (\r\n)
@@ -158,23 +160,24 @@ fn extract_frontmatter(content: &str) -> (HashMap<String, String>, &str) {
 
             // Parse YAML frontmatter
             if let Ok(yaml_map) = serde_yaml::from_str::<serde_yaml::Value>(frontmatter)
-                && let Some(map) = yaml_map.as_mapping() {
-                    for (key, value) in map {
-                        if let Some(key_str) = key.as_str() {
-                            let value_str = if let Some(seq) = value.as_sequence() {
-                                seq.iter()
-                                    .filter_map(|v| v.as_str())
-                                    .collect::<Vec<_>>()
-                                    .join(",")
-                            } else {
-                                value.as_str().unwrap_or_default().to_string()
-                            };
-                            if !value_str.is_empty() {
-                                metadata.insert(key_str.to_string(), value_str);
-                            }
+                && let Some(map) = yaml_map.as_mapping()
+            {
+                for (key, value) in map {
+                    if let Some(key_str) = key.as_str() {
+                        let value_str = if let Some(seq) = value.as_sequence() {
+                            seq.iter()
+                                .filter_map(|v| v.as_str())
+                                .collect::<Vec<_>>()
+                                .join(",")
+                        } else {
+                            value.as_str().unwrap_or_default().to_string()
+                        };
+                        if !value_str.is_empty() {
+                            metadata.insert(key_str.to_string(), value_str);
                         }
                     }
                 }
+            }
             return (metadata, &content[content_start..]);
         }
     }
