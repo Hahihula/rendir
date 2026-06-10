@@ -385,7 +385,8 @@
                 try {
                     if (store.search_index) {
                         const indexData = JSON.parse(store.search_index);
-                        searchEngine = new ClientSearchIndex(indexData);
+                        const postsText = (store.posts || []).map(p => p.content || '');
+                        searchEngine = new ClientSearchIndex(indexData, postsText);
                     }
                 } catch (e) {
                     console.error('Failed to parse search index:', e);

@@ -162,9 +162,10 @@ fn decode_html_entity(entity: &str) -> String {
             if entity.starts_with("&#") && entity.ends_with(';') {
                 let num_str = &entity[2..entity.len() - 1];
                 if let Ok(code) = num_str.parse::<u32>()
-                    && let Some(ch) = char::from_u32(code) {
-                        return ch.to_string();
-                    }
+                    && let Some(ch) = char::from_u32(code)
+                {
+                    return ch.to_string();
+                }
             }
             entity.to_string()
         }

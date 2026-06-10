@@ -1,93 +1,114 @@
 // Shared search engine for Rendir Vue templates
-// Provides ClientSearchIndex class and a Vue component that can be registered globally
+// Provides ClientSearchIndex class and RendirSearch Vue component
 
 // ============================================================
-// ClientSearchIndex — Full-text search engine (mirror of Rust's BuiltSearchIndex)
+// ClientSearchIndex - Trigram-based full-text search engine
 // ============================================================
 class ClientSearchIndex {
-    constructor(indexData) {
-        this.index = indexData.index || {};
+    constructor(indexData, docsText) {
+        this.postings = indexData.postings || {};
         this.documents = indexData.documents || [];
+        this.docsText = docsText || [];
     }
 
     search(query, limit = 10) {
         const queryLower = query.toLowerCase();
-        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 0);
-        if (queryWords.length === 0) return [];
+        const queryTris = this._trigrams(queryLower);
+        if (queryTris.length === 0) return [];
 
-        const scores = {};
-        for (const word of queryWords) {
-            const docs = this.index[word] || [];
-            for (const doc of docs) {
-                scores[doc.id] = (scores[doc.id] || 0) + 1.0;
-            }
-        }
+        const results = [];
 
-        for (const doc of this.documents) {
-            const titleLower = doc.title.toLowerCase();
-            const contentLower = doc.content.toLowerCase();
-            for (const word of queryWords) {
-                if (titleLower.includes(word)) {
-                    scores[doc.id] = (scores[doc.id] || 0) + 2.0;
+        for (let idx = 0; idx < this.documents.length; idx++) {
+            const doc = this.documents[idx];
+            const docId = idx;
+            let matched = 0;
+            let minPosition = Infinity;
+
+            for (const tri of queryTris) {
+                const postings = this.postings[tri] || [];
+                for (const posting of postings) {
+                    if (posting.doc_id === docId) {
+                        matched++;
+                        if (posting.positions[0] < minPosition) {
+                            minPosition = posting.positions[0];
+                        }
+                        break;
+                    }
                 }
-                if (contentLower.includes(word)) {
-                    scores[doc.id] = (scores[doc.id] || 0) + 1.0;
-                }
             }
-        }
 
-        let results = Object.entries(scores)
-            .filter(([_, score]) => score > 0)
-            .map(([id, score]) => {
-                const doc = this.documents.find(d => d.id === id);
-                if (!doc) return null;
-                return {
-                    id: doc.id,
-                    title: doc.title,
-                    url: doc.url,
-                    snippet: this.extractSnippet(doc.content, queryLower),
-                    score
-                };
-            })
-            .filter(r => r !== null);
+            if (matched === 0) continue;
+
+            const recall = matched / Math.max(queryTris.length, 1);
+            let score = 2.0 * recall;
+
+            if (doc.title.toLowerCase().includes(queryLower)) {
+                score += 1.0;
+            }
+
+            const text = this.docsText[idx] || '';
+            if (text.includes(queryLower)) {
+                score += 0.5;
+            }
+
+            if (matched > 0) {
+                score += 0.3 * (1 / (1 + minPosition / 1000));
+            }
+
+            results.push({
+                id: doc.id,
+                title: doc.title,
+                url: doc.url,
+                tags: doc.tags || [],
+                score,
+                matchPosition: minPosition === Infinity ? 0 : minPosition
+            });
+        }
 
         results.sort((a, b) => b.score - a.score);
         return results.slice(0, limit);
     }
 
-    extractSnippet(content, query) {
-        const queryWords = query.split(/\s+/).filter(w => w.length > 0);
-        const contentLower = content.toLowerCase();
-        for (const word of queryWords) {
-            const pos = contentLower.indexOf(word);
-            if (pos !== -1) {
-                const start = Math.max(0, pos - 50);
-                const end = Math.min(content.length, pos + 150);
-                let snippet = content.slice(start, end);
-                if (start > 0) snippet = '...' + snippet;
-                if (end < content.length) snippet = snippet + '...';
-                return snippet;
-            }
+    extractSnippet(text, position) {
+        if (!text) return '';
+        const pos = position;
+        const start = Math.max(0, pos - 50);
+        const end = Math.min(text.length, pos + 150);
+        let snippet = text.slice(start, end);
+        if (start > 0) snippet = '...' + snippet;
+        if (end < text.length) snippet = snippet + '...';
+        return snippet;
+    }
+
+    _trigrams(query) {
+        if (query.length < 3) {
+            return query.length === 0 ? [] : [query];
         }
-        return content.slice(0, 150) + (content.length > 150 ? '...' : '');
+        const tris = [];
+        for (let i = 0; i <= query.length - 3; i++) {
+            tris.push(query.slice(i, i + 3));
+        }
+        return tris;
     }
 }
 
 // ============================================================
-// RendirSearch — Vue 3 component for search input + results
+// RendirSearch - Vue 3 component for search input + results
 // ============================================================
 // Props:
-//   searchIndex (String) — JSON-serialized BuiltSearchIndex from Rust
-//   placeholder (String) — Input placeholder text
-//   minQueryLength (Number) — Minimum characters before searching (default 2)
+//   searchIndex (String) - JSON-serialized BuiltSearchIndex from Rust
+//   docsText (Array) - Array of plain text strings indexed by doc_id
+//   placeholder (String) - Input placeholder text
+//   minQueryLength (Number) - Minimum characters before searching (default 2)
 //
 // Events:
-//   update:query — Emitted when the user types
-//   navigate(url) — Emitted when a result is clicked
+//   update:query - Emitted when the user types
+//   navigate(url) - Emitted when a result is clicked
 const RendirSearch = {
     name: 'RendirSearch',
     props: {
         searchIndex: { type: String, default: '' },
+        docsText: { type: Array, default: () => [] },
         placeholder: { type: String, default: 'Search...' },
         minQueryLength: { type: Number, default: 2 }
     },
@@ -99,7 +120,7 @@ const RendirSearch = {
         let engine = null;
         if (props.searchIndex) {
             try {
-                engine = new ClientSearchIndex(JSON.parse(props.searchIndex));
+                engine = new ClientSearchIndex(JSON.parse(props.searchIndex), props.docsText);
             } catch (e) {
                 console.error('RendirSearch: parse error', e);
             }
@@ -117,7 +138,15 @@ const RendirSearch = {
             emit('navigate', url);
         }
 
-        return { query, results, handleNavigate };
+        function getSnippet(result) {
+            if (!engine || !result) return '';
+            const idx = engine.documents.findIndex(d => d.id === result.id);
+            if (idx < 0) return '';
+            const text = engine.docsText[idx] || '';
+            return engine.extractSnippet(text, result.matchPosition || 0);
+        }
+
+        return { query, results, handleNavigate, getSnippet };
     },
     template: `
         <div class="rendir-search">
@@ -134,7 +163,7 @@ const RendirSearch = {
                          class="rendir-search-result"
                          @click="handleNavigate(r.url)">
                         <div class="rst-sr-title">{{ r.title }}</div>
-                        <div class="rst-sr-snippet" v-html="r.snippet"></div>
+                        <div class="rst-sr-snippet">{{ getSnippet(r) }}</div>
                     </div>
                 </template>
                 <div v-else class="rst-sr-none">No results found</div>

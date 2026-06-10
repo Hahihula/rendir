@@ -339,12 +339,25 @@
 
                 const searchQuery = ref('');
 
+                // Helper to recursively collect plain_text from chapters in declaration order
+                function collectPlainText(chapters) {
+                    const result = [];
+                    for (const ch of chapters) {
+                        result.push(ch.plain_text || '');
+                        if (ch.children && ch.children.length > 0) {
+                            result.push(...collectPlainText(ch.children));
+                        }
+                    }
+                    return result;
+                }
+
                 // Build client search index from the Rust-built data
                 let searchEngine = null;
                 try {
                     if (store.search_index) {
                         const indexData = JSON.parse(store.search_index);
-                        searchEngine = new ClientSearchIndex(indexData);
+                        const chaptersText = collectPlainText(store.chapters);
+                        searchEngine = new ClientSearchIndex(indexData, chaptersText);
                     }
                 } catch (e) {
                     console.error('Failed to parse search index:', e);

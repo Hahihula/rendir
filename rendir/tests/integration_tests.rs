@@ -664,12 +664,14 @@ title: "Test Post"
         .success();
 
     assert!(output_path.exists());
-    assert!(output_path
-        .parent()
-        .unwrap()
-        .join("images")
-        .join("logo.png")
-        .exists());
+    assert!(
+        output_path
+            .parent()
+            .unwrap()
+            .join("images")
+            .join("logo.png")
+            .exists()
+    );
 }
 
 #[test]
@@ -710,11 +712,13 @@ title: "Chapter 1"
         .success();
 
     assert!(output_dir.join("chapter1").join("index.html").exists());
-    assert!(output_dir
-        .join("chapter1")
-        .join("images")
-        .join("diagram.png")
-        .exists());
+    assert!(
+        output_dir
+            .join("chapter1")
+            .join("images")
+            .join("diagram.png")
+            .exists()
+    );
 }
 
 #[test]
@@ -767,9 +771,10 @@ Some text.
 "#;
     let item = parse_markdown_with_path(content, None, Some(PathBuf::from("/project/page.md")));
     assert!(!item.remote_references.is_empty());
-    assert!(item
-        .remote_references
-        .contains(&"https://example.com/logo.png".to_string()));
+    assert!(
+        item.remote_references
+            .contains(&"https://example.com/logo.png".to_string())
+    );
 }
 
 #[test]

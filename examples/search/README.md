@@ -75,7 +75,11 @@ The `SearchEngine` trait allows swapping implementations:
 ```rust
 pub trait SearchEngine: Send + Sync {
     fn add_document(&mut self, doc: SearchDocument);
-    fn search(&self, query: &str, limit: usize) -> Vec<SearchResult>;
+    /// Build the index lazily and cache it so repeated calls (e.g. on every
+    /// keystroke in an interactive UI) are cheap. The `&mut self` receiver
+    /// is what allows that caching without `RefCell`/`RwLock` on the
+    /// consumer side.
+    fn search(&mut self, query: &str, limit: usize) -> Vec<SearchResult>;
     fn clear(&mut self);
 }
 ```

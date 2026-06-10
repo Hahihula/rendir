@@ -1,5 +1,5 @@
 // rendir-wasm/src/lib.rs
-use rendir_core::components::{builtins::register_builtin_components, ComponentRegistry};
+use rendir_core::components::{ComponentRegistry, builtins::register_builtin_components};
 use rendir_core::{
     parse_markdown, parse_markdown_with_path, render_html, render_slideshow_vue,
     render_with_template,
