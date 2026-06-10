@@ -5,6 +5,7 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY rendir ./rendir
 COPY rendir-core ./rendir-core
+COPY rendir-wasm ./rendir-wasm
 
 RUN cargo build --release --package rendir
 
