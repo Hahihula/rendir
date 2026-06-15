@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rendir">
     <title>Presenter View - {{ title }}</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
@@ -138,6 +139,22 @@
 
         .presenter-controls button:hover { background: #1976D2; }
         .presenter-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Powered by footer */
+        .powered-by {
+            text-align: center;
+            padding: 10px 20px;
+            background: #16213e;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.6);
+        }
+        .powered-by a {
+            color: rgba(255,255,255,0.85);
+            text-decoration: none;
+        }
+        .powered-by a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -183,6 +200,10 @@
         <button v-on:click="prevSlide">&#9664; Previous</button>
         <button v-on:click="nextSlide">Next &#9654;</button>
     </div>
+
+    <footer class="powered-by">
+        Powered by <a href="https://gitlab.com/hahihula/rendir" target="_blank" rel="noopener">rendir</a>
+    </footer>
 
     <script>
         const { createApp, ref, computed } = Vue;

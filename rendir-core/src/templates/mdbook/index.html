@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rendir">
     <title v-html="store.title"></title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
@@ -236,6 +237,24 @@
             .sidebar { display: none; }
             .main-content { margin-left: 0; padding: 20px; }
         }
+
+        /* Powered by footer */
+        .powered-by {
+            max-width: 900px;
+            margin: 40px 0 20px;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 0.85rem;
+            color: #888;
+            border-top: 1px solid #ddd;
+        }
+        .powered-by a {
+            color: #2196F3;
+            text-decoration: none;
+        }
+        .powered-by a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -315,6 +334,10 @@
                 <article class="markdown-content" v-html="store.current_chapter.content">
                 </article>
             </template>
+
+            <footer class="powered-by">
+                Powered by <a href="https://gitlab.com/hahihula/rendir" target="_blank" rel="noopener">rendir</a>
+            </footer>
         </main>
     </div>
 

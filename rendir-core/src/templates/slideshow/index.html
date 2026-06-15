@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rendir">
     <title v-bind:title="title">{{ title }}</title>
     <template id="hreflang-tags">{{HREFLANG_TAGS}}</template>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -272,6 +273,27 @@
             border-color: rgba(255,255,255,0.6);
         }
 
+        /* Powered by ribbon */
+        .powered-by {
+            position: fixed;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.5);
+            z-index: 99;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            pointer-events: auto;
+        }
+        .powered-by a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+        }
+        .powered-by a:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
+
         .slide.active .slide-content > * {
             animation: fadeInUp 0.4s ease-out;
         }
@@ -320,6 +342,10 @@
                 <button v-on:click="prevSlide" title="Previous (Left Arrow)">&#9664;</button>
                 <button v-on:click="nextSlide" title="Next (Right Arrow)">&#9654;</button>
             </div>
+        </div>
+
+        <div class="powered-by">
+            Powered by <a href="https://gitlab.com/hahihula/rendir" target="_blank" rel="noopener">rendir</a>
         </div>
     </div>
 
