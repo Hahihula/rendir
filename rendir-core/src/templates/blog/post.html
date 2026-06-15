@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rendir">
     <title>{{ title }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -145,6 +146,21 @@
         .back-link a:hover {
             color: #2196F3;
         }
+
+        /* Powered by footer */
+        .powered-by {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+        .powered-by a {
+            color: #2196F3;
+            text-decoration: none;
+        }
+        .powered-by a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -172,10 +188,14 @@
                     {{ next_post }}
                 </div>
                 <div class="back-link">
-                    <a href="/">← Back to Blog</a>
+                    <a href="/">&larr; Back to Blog</a>
                 </div>
             </footer>
         </article>
+
+        <footer class="powered-by">
+            Powered by <a href="https://gitlab.com/hahihula/rendir" target="_blank" rel="noopener">rendir</a>
+        </footer>
     </div>
 </body>
 </html>
