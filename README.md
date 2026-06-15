@@ -1,3 +1,10 @@
+# Mirror Notice
+
+This repository is a mirror of the primary repository hosted on GitLab: [https://gitlab.com/hahihula/rendir](https://gitlab.com/hahihula/rendir).
+All development and contributions happen on the GitLab repository. Please submit issues and pull requests there.
+
+## Original README
+
 # Rendir
 
 <div align="center">
