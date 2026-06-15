@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 /// Represents a content item (e.g., a markdown file)
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
 pub struct ContentItem {
     /// File path (if from a file)
     pub path: Option<PathBuf>,
